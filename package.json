@@ -1,0 +1,29 @@
+{
+  "name": "harmonizer",
+  "version": "0.0.0",
+  "description": "es6 to es5 transpiler",
+  "main": "index.js",
+  "dependencies": {
+    "esprima": "ariya/esprima#harmony",
+    "nodes": "kamicane/nodes#master"
+  },
+  "devDependencies": {},
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/kamicane/harmonizer.git"
+  },
+  "keywords": [
+    "es6",
+    "transpiler",
+    "ast"
+  ],
+  "author": "Valerio Proietti <kamicane@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/kamicane/harmonizer/issues"
+  },
+  "homepage": "https://github.com/kamicane/harmonizer"
+}
