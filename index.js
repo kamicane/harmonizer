@@ -3,7 +3,8 @@
 var esprima = require('esprima');
 
 var build = require('nodes');
-var types = require('nodes/types');
+var nodes = build.nodes;
+var List = build.lists.List;
 var syntax = require('nodes/syntax.json');
 
 // var slice = Array.prototype.slice;
@@ -21,9 +22,15 @@ var lowerFirst = function(string) {
 // insertBefore
 
 var insertBefore = function(node, node2) {
-  var parentNodeInList = node.parent('#Node < #List');
+  var parentNodeInList = node.parentNode instanceof List ? node : node.parent('#Node < #List');
   var parentList = parentNodeInList.parentNode;
   parentList.splice(parentList.indexOf(parentNodeInList), 0, node2);
+};
+
+var insertAfter = function(node, node2) {
+  var parentNodeInList = node.parentNode instanceof List ? node : node.parent('#Node < #List');
+  var parentList = parentNodeInList.parentNode;
+  parentList.splice(parentList.indexOf(parentNodeInList) + 1, 0, node2);
 };
 
 // expression
@@ -40,7 +47,7 @@ var getUniqueName = function(node, name) {
 
 var getUniqueId = function(node, name) {
   name = getUniqueName(node, name);
-  return new types.Identifier({ name: name });
+  return new nodes.Identifier({ name: name });
 };
 
 // # util definitions
@@ -50,13 +57,13 @@ var getSelfId = function(node) {
     var selfName = getUniqueName(node, 'self');
     var declaration = express('var ' + selfName + ' = this');
     var id = declaration.declarations[0].id;
-    var body = types.Function.test(node) ? node.body.body : node.body;
+    var body = nodes.Function.test(node) ? node.body.body : node.body;
     body.unshift(declaration);
 
     node.selfId = id;
   }
 
-  return node.selfId;
+  return node.selfId.clone();
 };
 
 var spread = function() {
@@ -67,18 +74,45 @@ var spread = function() {
   return array;
 };
 
+var extend = function(SuperClass, Class, prototype) {
+  var descriptors = { constructor: { value: Class } };
+  for (var key in prototype) descriptors[key] = Object.getOwnPropertyDescriptor(prototype, key);
+  Class.prototype = Object.create(SuperClass.prototype, descriptors);
+};
+
+var getSuperDescriptor = function(prototype, name) {
+  var descriptor;
+  while (prototype = Object.getPrototypeOf(prototype)) {
+    if (descriptor = Object.getOwnPropertyDescriptor(prototype, name)) return descriptor;
+  }
+};
+
+var getExtendId = function(node) {
+  if (!node.extendId) {
+    var extendName = getUniqueName(node, 'extend');
+    var declaration = express('var ' + extendName + ' = ' + extend.toString());
+    var id = declaration.declarations[0].id;
+    var body = nodes.Function.test(node) ? node.body.body : node.body;
+    body.unshift(declaration);
+
+    node.extendId = id;
+  }
+
+  return node.extendId.clone();
+};
+
 var getSpreadId = function(node) {
   if (!node.spreadId) {
     var spreadName = getUniqueName(node, 'spread');
     var declaration = express('var ' + spreadName + ' = ' + spread.toString());
     var id = declaration.declarations[0].id;
-    var body = types.Function.test(node) ? node.body.body : node.body;
+    var body = nodes.Function.test(node) ? node.body.body : node.body;
     body.unshift(declaration);
 
     node.spreadId = id;
   }
 
-  return node.spreadId;
+  return node.spreadId.clone();
 };
 
 var getSliceId = function(node) {
@@ -86,26 +120,26 @@ var getSliceId = function(node) {
     var sliceName = getUniqueName(node, 'slice');
     var declaration = express('var ' + sliceName + ' = Array.prototype.slice');
     var id = declaration.declarations[0].id;
-    var body = types.Function.test(node) ? node.body.body : node.body;
+    var body = nodes.Function.test(node) ? node.body.body : node.body;
     body.unshift(declaration);
 
     node.sliceId = id;
   }
 
-  return node.sliceId;
+  return node.sliceId.clone();
 };
 
 // # create nodes
 
 var createDeclarator = function(id, init) {
-  return new types.VariableDeclarator({
+  return new nodes.VariableDeclarator({
     id: id,
     init: init
   });
 };
 
 var createAssignment = function(left, right) {
-  return new types.AssignmentExpression({
+  return new nodes.AssignmentExpression({
     operator: '=',
     left: left,
     right: right
@@ -192,12 +226,12 @@ function patternify(program) {
 
     var valueId = getUniqueId(forStatement.scope(), lowerFirst(pattern.type));
 
-    declarations.replaceChild(declarator, new types.VariableDeclarator({
+    declarations.replaceChild(declarator, new nodes.VariableDeclarator({
       id: valueId,
       kind: declaration.kind
     }));
 
-    var newDeclaration = new types.VariableDeclaration;
+    var newDeclaration = new nodes.VariableDeclaration;
     forStatement.body.body.unshift(newDeclaration);
     destruct[pattern.type](pattern, newDeclaration.declarations, valueId);
   });
@@ -216,8 +250,8 @@ function patternify(program) {
 
     forStatement.left = express('var ' + valueId.name);
 
-    var expression = new types.ExpressionStatement;
-    var sequence = new types.SequenceExpression;
+    var expression = new nodes.ExpressionStatement;
+    var sequence = new nodes.SequenceExpression;
     expression.expression = sequence;
     forStatement.body.body.unshift(expression);
     destruct[pattern.type](pattern, sequence.expressions, valueId, true);
@@ -276,7 +310,7 @@ function patternify(program) {
     if (sequence.type !== syntax.SequenceExpression) {
       var key = expressions.indexOf(expression);
 
-      expressions[key] = new types.SequenceExpression({
+      expressions[key] = new nodes.SequenceExpression({
         expressions: [ expressions[key] ]
       });
 
@@ -314,7 +348,7 @@ function patternify(program) {
 
     if (!pattern.search('properties > * > value#Identifier, elements > #Identifier').length) return;
 
-    var declaration = new types.VariableDeclaration;
+    var declaration = new nodes.VariableDeclaration;
     fn.body.body.unshift(declaration);
     destruct[pattern.type](pattern, declaration.declarations, valueId);
 
@@ -392,7 +426,7 @@ function arrowify(program) {
   });
 
   program.search('#ArrowFunctionExpression').forEach(function(node) {
-    var shallow = new types.FunctionExpression(node);
+    var shallow = new nodes.FunctionExpression(node);
     node.parentNode.replaceChild(node, shallow);
   });
 }
@@ -401,7 +435,7 @@ function forofify(program) {
 
   program.search('#ForOfStatement').forEach(function(node) {
 
-    var forStatement = new types.ForStatement;
+    var forStatement = new nodes.ForStatement;
 
     var left = node.left;
 
@@ -410,21 +444,21 @@ function forofify(program) {
 
     forStatement.body = node.body;
 
-    var init = new types.CallExpression({
-      callee: new types.MemberExpression({
+    var init = new nodes.CallExpression({
+      callee: new nodes.MemberExpression({
         computed: true,
         object: node.right,
         property: express('Symbol.iterator').expression
       })
     });
 
-    forStatement.init = new types.VariableDeclaration({
+    forStatement.init = new nodes.VariableDeclaration({
       declarations: [
-        new types.VariableDeclarator({
+        new nodes.VariableDeclarator({
           id: iteratorId,
           init: init
         }),
-        new types.VariableDeclarator({
+        new nodes.VariableDeclarator({
           id: stepId
         })
        ]
@@ -438,7 +472,7 @@ function forofify(program) {
       left.declarations[0].init = xp;
       expression = left;
     } else {
-      expression = new types.AssignmentExpression({
+      expression = new nodes.AssignmentExpression({
         operator: '=',
         left: left,
         right: xp
@@ -452,18 +486,16 @@ function forofify(program) {
   });
 }
 
-// esprima bug: the spread element is only accepted as the last argument / element
-// I chose not to implement spread the "right" way until esprima gets fixed, since there is no js parser for it.
-function spreadify(program) {
+var applyContext = function(node, context) {
+  var args = node.arguments;
+  var spread = args[args.length - 1];
 
-  program.search('#SpreadElement < arguments < #CallExpression').forEach(function(node) {
+  var propertyName;
 
-    var args = node.arguments;
-    var spread = args[args.length - 1];
-
+  if (spread.type === syntax.SpreadElement) {
     args.replaceChild(spread, spread.argument);
 
-    var spreadId = getSpreadId(program);
+    var spreadId = getSpreadId(node.root);
 
     var spreadCall = express(spreadId.name + '()').expression;
 
@@ -471,12 +503,18 @@ function spreadify(program) {
 
     args.push(spreadCall);
 
-    var callee = node.callee;
-    var object = callee.object;
+    propertyName = 'apply';
+  } else {
+    propertyName = 'call';
+  }
 
+  var callee = node.callee;
+  var object = callee.object;
+
+  if (!context) {
     if (callee.type !== syntax.MemberExpression) {
 
-      args.unshift(new types.Literal({ value: null }));
+      args.unshift(new nodes.Literal({ value: null }));
 
     } else {
 
@@ -484,20 +522,29 @@ function spreadify(program) {
         var contextId = getUniqueId(node.scope(), lowerFirst(object.type));
         var declaration = express('var ' + contextId.name + ' = $');
         var declarator = declaration.declarations[0];
-        declarator.init = object.clone();
+        declarator.init = object;
         insertBefore(node, declaration);
-
         object = callee.object = contextId;
       }
 
       args.unshift(object.clone());
     }
+  } else {
+    args.unshift(context);
+  }
 
-    node.callee = new types.MemberExpression({
-      object: node.callee,
-      property: new types.Identifier({ name: 'apply' })
-    });
+  node.callee = new nodes.MemberExpression({
+    object: node.callee,
+    property: new nodes.Identifier({ name: propertyName })
+  });
+};
 
+// esprima bug: the spread element is only accepted as the last argument / element
+// I chose not to implement spread the "right" way until esprima gets fixed, since there is no js parser for it.
+function spreadify(program) {
+
+  program.search('#SpreadElement < arguments < #CallExpression').forEach(function(node) {
+    applyContext(node);
   });
 
   program.search('#SpreadElement < elements < #ArrayExpression').forEach(function(node) {
@@ -525,31 +572,31 @@ function comprehendify(program) {
     var parentNode = node.parentNode;
     var blocks = node.blocks;
 
-    var callExpression = express('(function(){})()').expression;
-    var body = callExpression.callee.body.body;
+    var wrapper = express('(function(){})()').expression;
+    var body = wrapper.callee.body.body;
 
-    var comprehensionId = new types.Identifier({ name: '$' });
+    var comprehensionId = new nodes.Identifier({ name: '$' });
 
     var identifiers = [comprehensionId];
 
-    var comprehensionDeclaration = new types.VariableDeclaration({
-      declarations: [new types.VariableDeclarator({
+    var comprehensionDeclaration = new nodes.VariableDeclaration({
+      declarations: [new nodes.VariableDeclarator({
         id: comprehensionId,
-        init: new types.ArrayExpression
+        init: new nodes.ArrayExpression
       })]
     });
 
     var forOfRoot, forOfInnermost;
 
     blocks.forEach(function(block) {
-      var forOfStatement = new types.ForOfStatement;
+      var forOfStatement = new nodes.ForOfStatement;
 
-      forOfStatement.left = new types.VariableDeclaration({
-        declarations: [ new types.VariableDeclarator({id: block.left}) ]
+      forOfStatement.left = new nodes.VariableDeclaration({
+        declarations: [ new nodes.VariableDeclarator({id: block.left}) ]
       });
 
       forOfStatement.right = block.right;
-      forOfStatement.body = new types.BlockStatement;
+      forOfStatement.body = new nodes.BlockStatement;
 
       if (forOfInnermost) forOfInnermost.body.body.push(forOfStatement);
       else forOfRoot = forOfStatement;
@@ -562,7 +609,7 @@ function comprehendify(program) {
     identifiers.push(pushCallExpression.expression.callee.object);
 
     if (node.filter) {
-      var ifStatement = new types.IfStatement({
+      var ifStatement = new nodes.IfStatement({
         test: node.filter,
         consequent: pushCallExpression
       });
@@ -571,16 +618,16 @@ function comprehendify(program) {
       forOfInnermost.body.body.push(pushCallExpression);
     }
 
-    var returnStatement = new types.ReturnStatement({
+    var returnStatement = new nodes.ReturnStatement({
       argument: comprehensionId.clone()
     });
 
     identifiers.push(returnStatement.argument);
 
     body.push(comprehensionDeclaration, forOfRoot, returnStatement);
-    parentNode.replaceChild(node, callExpression);
+    parentNode.replaceChild(node, wrapper);
 
-    var comprehensionName = getUniqueName(callExpression.callee, 'comprehension');
+    var comprehensionName = getUniqueName(wrapper.callee, 'comprehension');
 
     identifiers.forEach(function(id) {
       id.name = comprehensionName;
@@ -588,6 +635,111 @@ function comprehendify(program) {
 
   });
 
+}
+
+// todo: super accessors.
+function classify(program) {
+
+  program.search('#Class').forEach(function(node) {
+    var definitions = node.body.body;
+
+    var scope = node.scope();
+
+    var extendId, superClass = node.superClass;
+
+    if (superClass) extendId = getExtendId(program);
+
+    var superClassDeclaration;
+
+    if (superClass && superClass.type !== syntax.Identifier) {
+      var superClassId = getUniqueId(scope, 'Super' + capitalize(node.id.name));
+      superClassDeclaration = new nodes.VariableDeclaration({
+        declarations: [ new nodes.VariableDeclarator({ id: superClassId, init: superClass }) ]
+      });
+      superClass = node.superClass = superClassId.clone();
+    }
+
+    var constructorFunction;
+
+    definitions.search('#CallExpression > callee#Identifier[name=super]').forEach(function(id) {
+      var call = id.parentNode;
+      if (call.parent('#Class') !== node) return; // nested classes ? idk. todo: traverse with skip nodes
+      var definition = call.parent('#MethodDefinition');
+      var methodId = definition.key;
+
+      var definitionFunction = definition.value;
+
+      var superCallExpression;
+      if (methodId.name === 'constructor') {
+        constructorFunction = definitionFunction;
+        superCallExpression = superClass.clone();
+      } else {
+        superCallExpression = express(superClass.name + '.prototype.' + methodId.name).expression;
+      }
+
+      var scope = id.scope();
+      var selfId;
+
+      if (scope !== definitionFunction) selfId = getSelfId(definitionFunction);
+      else selfId = new nodes.ThisExpression;
+
+      call.callee = superCallExpression;
+      applyContext(call, selfId);
+    });
+
+    if (constructorFunction) {
+      constructorFunction.id = node.id;
+      definitions.removeChild(constructorFunction.parentNode);
+      constructorFunction = new nodes.FunctionDeclaration(constructorFunction);
+    } else {
+      constructorFunction = express('function ' + node.id.name + '() {' +
+        'return ' + superClass.name + '.apply(this, arguments)' +
+      '}');
+    }
+
+    var wrapper;
+
+    if (node.type === syntax.ClassExpression) {
+      wrapper = express('(function(){})()').expression;
+
+      var body = wrapper.callee.body.body;
+
+      var returnStatement = new nodes.ReturnStatement({
+        argument: constructorFunction.id.clone()
+      });
+
+      body.push(constructorFunction);
+      body.push(returnStatement);
+    } else {
+      wrapper = constructorFunction;
+    }
+
+    node.parentNode.replaceChild(node, wrapper);
+
+    var prototype = new nodes.ObjectExpression;
+
+    definitions.forEach(function(definition) {
+      prototype.properties.push(new nodes.Property({
+        key: definition.key,
+        value: definition.value,
+        kind: definition.kind || 'init'
+      }));
+    });
+
+    var prototypeExpression;
+
+    if (!superClass && prototype.properties.length) {
+      prototypeExpression = express('(' + constructorFunction.id.name + '.prototype = $)');
+      prototypeExpression.expression.right = prototype;
+    } else if (superClass) {
+      prototypeExpression = express(extendId.name + '()');
+      prototypeExpression.expression.arguments.push(superClass, constructorFunction.id.clone(), prototype);
+    }
+
+    if (superClassDeclaration) insertBefore(constructorFunction, superClassDeclaration);
+    if (prototypeExpression) insertAfter(constructorFunction, prototypeExpression);
+
+  });
 }
 
 // add blocks, fix ast woes
@@ -607,13 +759,13 @@ function blockify(program) {
   program.search(statementBodies).forEach(function(statement) {
     var parentNode = statement.parentNode;
     var key = parentNode.indexOf(statement);
-    parentNode[key] = new types.BlockStatement({ body: [ statement ] });
+    parentNode[key] = new nodes.BlockStatement({ body: [ statement ] });
   });
 
   program.search('#ArrowFunctionExpression[expression=true]').forEach(function(node) {
     node.expression = false;
-    node.body = new types.BlockStatement({
-      body: [ new types.ReturnStatement({ argument: node.body }) ]
+    node.body = new nodes.BlockStatement({
+      body: [ new nodes.ReturnStatement({ argument: node.body }) ]
     });
   });
 
@@ -637,8 +789,10 @@ function transform(tree) {
   patternify(program); // transform patterns
   defaultify(program); // transform default parameters
 
+  classify(program); // transform classes
+
   spreadify(program); // transform spread
-  // classify(program); // transform classes
+
   // templatify(program); // transform string tempaltes
   // letify(program); // transform let
 
