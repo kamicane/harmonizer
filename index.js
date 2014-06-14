@@ -659,8 +659,6 @@ function classify(program) {
       superClass = node.superClass = superClassId.clone();
     }
 
-    var constructorFunction;
-
     definitions.search('#CallExpression > callee#Identifier[name=super]').forEach(function(id) {
       var call = id.parentNode;
       if (call.parent('#Class') !== node) return; // nested classes ? idk. todo: traverse with skip nodes
@@ -671,7 +669,6 @@ function classify(program) {
 
       var superCallExpression;
       if (methodId.name === 'constructor') {
-        constructorFunction = definitionFunction;
         superCallExpression = superClass.clone();
       } else {
         superCallExpression = express(superClass.name + '.prototype.' + methodId.name).expression;
@@ -687,13 +684,15 @@ function classify(program) {
       applyContext(call, selfId);
     });
 
+    var constructorFunction = definitions.search('> #MethodDefinition > key[name=constructor] < * > value')[0];
+
     if (constructorFunction) {
       constructorFunction.id = node.id;
       definitions.removeChild(constructorFunction.parentNode);
       constructorFunction = new nodes.FunctionDeclaration(constructorFunction);
     } else {
       constructorFunction = express('function ' + node.id.name + '() {' +
-        'return ' + superClass.name + '.apply(this, arguments)' +
+        (superClass ? ('return ' + superClass.name + '.apply(this, arguments)') : '') +
       '}');
     }
 
