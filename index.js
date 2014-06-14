@@ -492,7 +492,7 @@ var applyContext = function(node, context) {
 
   var propertyName;
 
-  if (spread.type === syntax.SpreadElement) {
+  if (spread && spread.type === syntax.SpreadElement) {
     args.replaceChild(spread, spread.argument);
 
     var spreadId = getSpreadId(node.root);
