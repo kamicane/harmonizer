@@ -6,7 +6,7 @@ var build = require('nodes');
 var types = require('nodes/types');
 var syntax = require('nodes/syntax.json');
 
-var slice = Array.prototype.slice;
+// var slice = Array.prototype.slice;
 
 // string
 
@@ -179,7 +179,6 @@ function patternify(program) {
   var q;
 
   // transform forOf, forIn
-  // note: esprima has a bug (?) where it only parses declarations as patterns in for*statements
   q = ['#ForOfStatement > left > declarations > * > #ArrayPattern',
       '#ForOfStatement > left > declarations > * > #ObjectPattern',
       '#ForInStatement > left > declarations > * > #ArrayPattern',
@@ -191,7 +190,7 @@ function patternify(program) {
     var declaration = declarations.parentNode;
     var forStatement = declaration.parentNode;
 
-    var valueId = getUniqueId(forStatement.scope(), 'value');
+    var valueId = getUniqueId(forStatement.scope(), lowerFirst(pattern.type));
 
     declarations.replaceChild(declarator, new types.VariableDeclarator({
       id: valueId
@@ -200,6 +199,27 @@ function patternify(program) {
     var newDeclaration = new types.VariableDeclaration;
     forStatement.body.body.unshift(newDeclaration);
     destruct[pattern.type](pattern, newDeclaration.declarations, valueId);
+  });
+
+  // transform forOf, forIn assignment patterns
+
+  q = ['#ForOfStatement > left#ArrayPattern',
+      '#ForOfStatement > left#ObjectPattern',
+      '#ForInStatement > left#ArrayPattern',
+      '#ForInStatement > left#ObjectPattern'];
+
+  program.search(q).forEachRight(function(pattern) {
+    var forStatement = pattern.parentNode;
+
+    var valueId = getUniqueId(forStatement.scope(), lowerFirst(pattern.type));
+
+    forStatement.left = express('var ' + valueId.name);
+
+    var expression = new types.ExpressionStatement;
+    var sequence = new types.SequenceExpression;
+    expression.expression = sequence;
+    forStatement.body.body.unshift(expression);
+    destruct[pattern.type](pattern, sequence.expressions, valueId, true);
   });
 
   // transform declarators
@@ -264,7 +284,7 @@ function patternify(program) {
 
     expressions.removeChild(expression);
 
-    var sequence = expressions.parentNode;
+    sequence = expressions.parentNode;
 
     var valueId;
 
@@ -293,7 +313,7 @@ function patternify(program) {
 
     if (!pattern.search('properties > * > value#Identifier, elements > #Identifier').length) return;
 
-    var declaration = new types.VariableDeclaration();
+    var declaration = new types.VariableDeclaration;
     fn.body.body.unshift(declaration);
     destruct[pattern.type](pattern, declaration.declarations, valueId);
 
@@ -302,6 +322,7 @@ function patternify(program) {
 }
 
 function defaultify(program) {
+
   program.search('#Function').forEach(function(fn) {
     if (fn.defaults.length === 0) return;
 
@@ -318,35 +339,6 @@ function defaultify(program) {
     });
 
   });
-}
-
-// add all blocks for maybe future variable declarations
-function blockify(program) {
-
-  // todo: SwitchCase ?
-
-  var statementBodies = [
-    '#IfStatement > alternate', '#IfStatement > consequent',
-    '#ForStatement > body', '#ForInStatement > body', '#ForOfStatement > body',
-    '#WhileStatement > body', '#DoWhileStatement > body',
-    '#LabeledStatement > body'
-  ].map(function(type) {
-    return type + '[type!=BlockStatement]';
-  });
-
-  program.search(statementBodies).forEach(function(statement) {
-    var parentNode = statement.parentNode;
-    var key = parentNode.indexOf(statement);
-    parentNode[key] = new types.BlockStatement({ body: [ statement ] });
-  });
-
-  program.search('#ArrowFunctionExpression[expression=true]').forEach(function(node) {
-    node.expression = false;
-    node.body = new types.BlockStatement({
-      body: [ new types.ReturnStatement({ argument: node.body }) ]
-    });
-  });
-
 }
 
 // remove property shorthand and method shorthand
@@ -410,7 +402,16 @@ function forofify(program) {
 
     var forStatement = new types.ForStatement;
 
-    var declaratorId = node.left.declarations[0].id;
+    var left = node.left;
+
+    var leftId, assign;
+
+    if (left.type === syntax.Identifier) {
+      leftId = node.left;
+      assign = true;
+    } else if (left.type === syntax.VariableDeclaration) {
+      leftId = node.left.declarations[0].id;
+    }
 
     var iteratorId = getUniqueId(node.scope(), 'iterator');
     var stepId = getUniqueId(node.scope(), 'step');
@@ -421,11 +422,7 @@ function forofify(program) {
       callee: new types.MemberExpression({
         computed: true,
         object: node.right,
-        property: new types.MemberExpression({
-          computer: false,
-          object: new types.Identifier({ name: 'Symbol' }),
-          property: new types.Identifier({ name: 'iterator' })
-        })
+        property: express('Symbol.iterator').expression
       })
     });
 
@@ -442,16 +439,16 @@ function forofify(program) {
     });
 
     forStatement.test = express('!(' + stepId.name + ' = ' + iteratorId.name + '.next()).done').expression;
-    var declaration = express('var ' + declaratorId.name + ' = ' + stepId.name + '.value');
-    forStatement.body.body.unshift(declaration);
+    var expression = express((assign ? '' : 'var ') + leftId.name + ' = ' + stepId.name + '.value');
+    forStatement.body.body.unshift(expression);
 
     node.parentNode.replaceChild(node, forStatement);
 
   });
 }
 
-// note: esprima has a bug (?) where the spread element is only accepted as the last argument / element
-// I chose not to implement spread the "right" way until esprima gets fixed.
+// esprima bug: the spread element is only accepted as the last argument / element
+// I chose not to implement spread the "right" way until esprima gets fixed, since there is no js parser for it.
 function spreadify(program) {
 
   program.search('#SpreadElement < arguments < #CallExpression').forEach(function(node) {
@@ -517,27 +514,131 @@ function spreadify(program) {
 
 }
 
-// todo: process params as one to keep declaration order, in case of duplicate param names.
+function comprehendify(program) {
+
+  program.search('#ComprehensionExpression').forEach(function(node) {
+    var parentNode = node.parentNode;
+    var blocks = node.blocks;
+
+    var scope = node.scope();
+
+    var callExpression = express('(function(){})()').expression;
+    var body = callExpression.callee.body.body;
+
+    var comprehensionId = new types.Identifier({ name: '$' });
+
+    var identifiers = [comprehensionId];
+
+    var comprehensionDeclaration = new types.VariableDeclaration({
+      declarations: [new types.VariableDeclarator({
+        id: comprehensionId,
+        init: new types.ArrayExpression
+      })]
+    });
+
+    var forOfRoot, forOfInnermost;
+
+    blocks.forEach(function(block) {
+      var forOfStatement = new types.ForOfStatement;
+
+      forOfStatement.left = new types.VariableDeclaration({
+        declarations: [ new types.VariableDeclarator({id: block.left}) ]
+      });
+
+      forOfStatement.right = block.right;
+      forOfStatement.body = new types.BlockStatement;
+
+      if (forOfInnermost) forOfInnermost.body.body.push(forOfStatement);
+      else forOfRoot = forOfStatement;
+
+      forOfInnermost = forOfStatement;
+    });
+
+    var pushCallExpression = express(comprehensionId.name + '.push()');
+    pushCallExpression.expression.arguments.push(node.body);
+    identifiers.push(pushCallExpression.expression.callee.object);
+
+    if (node.filter) {
+      var ifStatement = new types.IfStatement({
+        test: node.filter,
+        consequent: pushCallExpression
+      });
+      forOfInnermost.body.body.push(ifStatement);
+    } else {
+      forOfInnermost.body.body.push(pushCallExpression);
+    }
+
+    var returnStatement = new types.ReturnStatement({
+      argument: comprehensionId.clone()
+    });
+
+    identifiers.push(returnStatement.argument);
+
+    body.push(comprehensionDeclaration, forOfRoot, returnStatement);
+    // insertBefore(node, comprehensionDeclaration);
+    // insertBefore(node, forOfRoot);
+    parentNode.replaceChild(node, callExpression);
+
+    var comprehensionName = getUniqueName(callExpression.callee, 'comprehension');
+
+    identifiers.forEach(function(id) {
+      id.name = comprehensionName;
+    });
+
+  });
+
+}
+
+// add blocks, fix ast woes
+function blockify(program) {
+
+  // todo: SwitchCase ?
+
+  var statementBodies = [
+    '#IfStatement > alternate', '#IfStatement > consequent',
+    '#ForStatement > body', '#ForInStatement > body', '#ForOfStatement > body',
+    '#WhileStatement > body', '#DoWhileStatement > body',
+    '#LabeledStatement > body'
+  ].map(function(type) {
+    return type + '[type!=BlockStatement]';
+  });
+
+  program.search(statementBodies).forEach(function(statement) {
+    var parentNode = statement.parentNode;
+    var key = parentNode.indexOf(statement);
+    parentNode[key] = new types.BlockStatement({ body: [ statement ] });
+  });
+
+  program.search('#ArrowFunctionExpression[expression=true]').forEach(function(node) {
+    node.expression = false;
+    node.body = new types.BlockStatement({
+      body: [ new types.ReturnStatement({ argument: node.body }) ]
+    });
+  });
+
+}
+
 // todo: do not lose loc on replaceChild.
 
 function transform(tree) {
   var program = build(tree);
 
-  window.program = program;
+  blockify(program); // normalize the program
 
-  // return program;
-
-  blockify(program); // blockify the program
   deshorthandify(program); // remove shorthand properties
   arrowify(program); // transform arrow functions
   restify(program); // transform rest parameter
 
-  defaultify(program); // transform default parameters
+  comprehendify(program); // transform comprehensions
+
   patternify(program); // transform patterns
-  forofify(program); // transform for of
+  defaultify(program); // transform default parameters
+
   spreadify(program); // transform spread
-  // comprehendify(program); // transform comprehensions
+
+  forofify(program); // transform for of
   // classify(program); // transform classes
+  // templatify(program); // transform string tempaltes
   // letify(program); // transform let
 
   return program;
