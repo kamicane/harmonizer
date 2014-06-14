@@ -193,7 +193,8 @@ function patternify(program) {
     var valueId = getUniqueId(forStatement.scope(), lowerFirst(pattern.type));
 
     declarations.replaceChild(declarator, new types.VariableDeclarator({
-      id: valueId
+      id: valueId,
+      kind: declaration.kind
     }));
 
     var newDeclaration = new types.VariableDeclaration;
@@ -404,15 +405,6 @@ function forofify(program) {
 
     var left = node.left;
 
-    var leftId, assign;
-
-    if (left.type === syntax.Identifier) {
-      leftId = node.left;
-      assign = true;
-    } else if (left.type === syntax.VariableDeclaration) {
-      leftId = node.left.declarations[0].id;
-    }
-
     var iteratorId = getUniqueId(node.scope(), 'iterator');
     var stepId = getUniqueId(node.scope(), 'step');
 
@@ -439,7 +431,20 @@ function forofify(program) {
     });
 
     forStatement.test = express('!(' + stepId.name + ' = ' + iteratorId.name + '.next()).done').expression;
-    var expression = express((assign ? '' : 'var ') + leftId.name + ' = ' + stepId.name + '.value');
+
+    var expression, xp = express(stepId.name + '.value').expression;
+
+    if (left.type === syntax.VariableDeclaration) {
+      left.declarations[0].init = xp;
+      expression = left;
+    } else {
+      expression = new types.AssignmentExpression({
+        operator: '=',
+        left: left,
+        right: xp
+      });
+    }
+
     forStatement.body.body.unshift(expression);
 
     node.parentNode.replaceChild(node, forStatement);
@@ -520,8 +525,6 @@ function comprehendify(program) {
     var parentNode = node.parentNode;
     var blocks = node.blocks;
 
-    var scope = node.scope();
-
     var callExpression = express('(function(){})()').expression;
     var body = callExpression.callee.body.body;
 
@@ -575,8 +578,6 @@ function comprehendify(program) {
     identifiers.push(returnStatement.argument);
 
     body.push(comprehensionDeclaration, forOfRoot, returnStatement);
-    // insertBefore(node, comprehensionDeclaration);
-    // insertBefore(node, forOfRoot);
     parentNode.replaceChild(node, callExpression);
 
     var comprehensionName = getUniqueName(callExpression.callee, 'comprehension');
@@ -631,12 +632,12 @@ function transform(tree) {
 
   comprehendify(program); // transform comprehensions
 
+  forofify(program); // transform for of
+
   patternify(program); // transform patterns
   defaultify(program); // transform default parameters
 
   spreadify(program); // transform spread
-
-  forofify(program); // transform for of
   // classify(program); // transform classes
   // templatify(program); // transform string tempaltes
   // letify(program); // transform let
