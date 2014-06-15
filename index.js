@@ -744,6 +744,7 @@ function classify(program) {
 
 // todo: tagged template expressions
 function templateify(program) {
+
   program.search('#TemplateLiteral').forEach(function(node) {
 
     // create an ordered array of parts to concatenate
@@ -794,6 +795,7 @@ function templateify(program) {
     node.parentNode.replaceChild(node, bin);
 
   });
+
 }
 
 // add blocks, fix ast woes
