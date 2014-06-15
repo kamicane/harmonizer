@@ -3,9 +3,10 @@
 var esprima = require('esprima');
 
 var build = require('nodes');
+var syntax = require('nodes/syntax.json');
+
 var nodes = build.nodes;
 var List = build.lists.List;
-var syntax = require('nodes/syntax.json');
 
 // var slice = Array.prototype.slice;
 
@@ -741,10 +742,62 @@ function classify(program) {
   });
 }
 
+// todo: tagged template expressions
+function templateify(program) {
+  program.search('#TemplateLiteral').forEach(function(node) {
+
+    // create an ordered array of parts to concatenate
+
+    var parts = [];
+
+    var stringFound;
+
+    node.quasis.forEach(function(quasi, i) {
+      var cooked = quasi.value.cooked;
+
+      // filter out empty strings, but always keep one string at least
+      if (cooked || !stringFound) {
+        stringFound = true;
+        parts.push(new nodes.Literal({ value: quasi.value.cooked }));
+      }
+      if (i in node.expressions) parts.push(node.expressions[i]);
+    });
+
+    // if parts.length is 1, it means there are no expressions
+    // it is simply a string.
+
+    if (parts.length === 1) {
+      node.parentNode.replaceChild(node, parts[0]);
+      return;
+    }
+
+    // create the parent binaryExpression by removing elements from parts
+
+    var bin = new nodes.BinaryExpression({
+      operator: '+',
+      left: parts.shift(),
+      right: parts.pop()
+    });
+
+    // now reduce the parts to a single BinaryExpression (if parts are left)
+
+    var binaryExpression = parts.reduceRight(function(bin, part, i) {
+
+      return bin.left = new nodes.BinaryExpression({
+        operator: '+',
+        left: bin.left,
+        right: part
+      });
+
+    }, bin);
+
+    node.parentNode.replaceChild(node, bin);
+
+  });
+}
+
 // add blocks, fix ast woes
 function blockify(program) {
-
-  // todo: SwitchCase ?
 
   var statementBodies = [
     '#IfStatement > alternate', '#IfStatement > consequent',
@@ -792,7 +845,7 @@ function transform(tree) {
 
   spreadify(program); // transform spread
 
-  // templatify(program); // transform string tempaltes
+  templateify(program); // transform string templates
   // letify(program); // transform let
 
   return program;
