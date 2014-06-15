@@ -8,8 +8,6 @@ var syntax = require('nodes/syntax.json');
 var nodes = build.nodes;
 var List = build.lists.List;
 
-// var slice = Array.prototype.slice;
-
 // string
 
 var capitalize = function(string) {
@@ -20,18 +18,31 @@ var lowerFirst = function(string) {
   return string.replace(/^[A-Z]/, function(a) { return a.toLowerCase(); });
 };
 
+var listIndex = function(node) {
+  var lastNode = node, firstList;
+  while (node = node.parentNode) {
+    if (node instanceof List) {
+      firstList = node;
+      break;
+    } else {
+      lastNode = node;
+    }
+  }
+  if (!firstList) throw new Error('parent list not found');
+
+  return { list: firstList, index: firstList.indexOf(lastNode) };
+};
+
 // insertBefore
 
 var insertBefore = function(node, node2) {
-  var parentNodeInList = node.parentNode instanceof List ? node : node.parent('#Node < #List');
-  var parentList = parentNodeInList.parentNode;
-  parentList.splice(parentList.indexOf(parentNodeInList), 0, node2);
+  var li = listIndex(node);
+  li.list.splice(li.index, 0, node2);
 };
 
 var insertAfter = function(node, node2) {
-  var parentNodeInList = node.parentNode instanceof List ? node : node.parent('#Node < #List');
-  var parentList = parentNodeInList.parentNode;
-  parentList.splice(parentList.indexOf(parentNodeInList) + 1, 0, node2);
+  var li = listIndex(node);
+  li.list.splice(li.index + 1, 0, node2);
 };
 
 // expression
@@ -280,14 +291,15 @@ function patternify(program) {
       destruct[pattern.type](pattern, declarations);
     } else {
       var valueId;
-
       if (declarator.init.type === syntax.Identifier) {
         valueId = declarator.init;
       } else {
+
         valueId = getUniqueId(declarations.scope(), lowerFirst(pattern.type));
         var valueDeclaration = express('var ' + valueId.name + ' = $');
         valueDeclaration.declarations[0].init = declarator.init;
         insertBefore(declarations, valueDeclaration);
+
       }
 
       destruct[pattern.type](pattern, declarations, valueId);
