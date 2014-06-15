@@ -767,14 +767,16 @@ function templateify(program) {
 
     node.quasis.forEach(function(quasi, i) {
       var cooked = quasi.value.cooked;
-
-      // filter out empty strings, but always keep one string at least
-      if (cooked || !stringFound) {
+      // filter out empty strings
+      if (cooked) {
         stringFound = true;
         parts.push(new nodes.Literal({ value: quasi.value.cooked }));
       }
       if (i in node.expressions) parts.push(node.expressions[i]);
     });
+
+    // but always keep one string at least
+    if (!stringFound) parts.push(new nodes.Literal({ value: '' }));
 
     // if parts.length is 1, it means there are no expressions
     // it is simply a string.
