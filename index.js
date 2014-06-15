@@ -86,10 +86,15 @@ var spread = function() {
   return array;
 };
 
-var extend = function(SuperClass, Class, prototype) {
-  var descriptors = { constructor: { value: Class } };
-  for (var key in prototype) descriptors[key] = Object.getOwnPropertyDescriptor(prototype, key);
-  Class.prototype = Object.create(SuperClass.prototype, descriptors);
+var extend = function(SuperClass, Class, prototype, members) {
+  var descriptors = function(base, object) {
+    for (var key in object) base[key] = Object.getOwnPropertyDescriptor(object, key);
+    return base;
+  };
+  Object.defineProperty(Class, 'prototype', {
+    value: Object.create(SuperClass.prototype, descriptors({ value: Class }, prototype))
+  });
+  return Object.defineProperties(Class, descriptors({}, members));
 };
 
 var getSuperDescriptor = function(prototype, name) {
@@ -110,7 +115,7 @@ var getExtendId = function(node) {
     node.extendId = id;
   }
 
-  return node.extendId.clone();
+  return node.extendId;
 };
 
 var getSpreadId = function(node) {
@@ -124,7 +129,7 @@ var getSpreadId = function(node) {
     node.spreadId = id;
   }
 
-  return node.spreadId.clone();
+  return node.spreadId;
 };
 
 var getSliceId = function(node) {
@@ -138,7 +143,7 @@ var getSliceId = function(node) {
     node.sliceId = id;
   }
 
-  return node.sliceId.clone();
+  return node.sliceId;
 };
 
 // # create nodes
@@ -405,7 +410,7 @@ function restify(program) {
     var block = node.body.body;
     var length = node.params.length;
 
-    var sliceId = getSliceId(program);
+    var sliceId = getSliceId(program).clone();
 
     var declaration = express(
       'var ' + node.rest.name + ' = ' +
@@ -508,7 +513,7 @@ var applyContext = function(node, context) {
   if (spread && spread.type === syntax.SpreadElement) {
     args.replaceChild(spread, spread.argument);
 
-    var spreadId = getSpreadId(node.root);
+    var spreadId = getSpreadId(node.root).clone();
 
     var spreadCall = express(spreadId.name + '()').expression;
 
@@ -567,7 +572,7 @@ function spreadify(program) {
 
     elements.replaceChild(spread, spread.argument);
 
-    var spreadId = getSpreadId(program);
+    var spreadId = getSpreadId(program).clone();
 
     var spreadCall = express(spreadId.name + '()').expression;
 
@@ -658,9 +663,8 @@ function classify(program) {
 
     var scope = node.scope();
 
-    var extendId, superClass = node.superClass;
-
-    if (superClass) extendId = getExtendId(program);
+    var superClass = node.superClass;
+    var extendId = getExtendId(program).clone();
 
     var superClassDeclaration;
 
@@ -709,47 +713,46 @@ function classify(program) {
       '}');
     }
 
-    var wrapper;
-
-    if (node.type === syntax.ClassExpression) {
-      wrapper = express('(function(){})()').expression;
-
-      var body = wrapper.callee.body.body;
-
-      var returnStatement = new nodes.ReturnStatement({
-        argument: constructorFunction.id.clone()
-      });
-
-      body.push(constructorFunction);
-      body.push(returnStatement);
-    } else {
-      wrapper = constructorFunction;
-    }
-
-    node.parentNode.replaceChild(node, wrapper);
+    if (!superClass) superClass = new nodes.Identifier({ name: 'Object' });
 
     var prototype = new nodes.ObjectExpression;
+    var members = new nodes.ObjectExpression;
 
     definitions.forEach(function(definition) {
-      prototype.properties.push(new nodes.Property({
+      (definition.static ? members : prototype).properties.push(new nodes.Property({
         key: definition.key,
         value: definition.value,
         kind: definition.kind || 'init'
       }));
     });
 
-    var prototypeExpression;
+    var extendExpression = express(extendId.name + '()');
+    extendExpression.expression.arguments.push(superClass, constructorFunction.id.clone(), prototype, members);
 
-    if (!superClass && prototype.properties.length) {
-      prototypeExpression = express('(' + constructorFunction.id.name + '.prototype = $)');
-      prototypeExpression.expression.right = prototype;
-    } else if (superClass) {
-      prototypeExpression = express(extendId.name + '()');
-      prototypeExpression.expression.arguments.push(superClass, constructorFunction.id.clone(), prototype);
+    if (node.type === syntax.ClassExpression) {
+
+      constructorFunction = new nodes.FunctionExpression(constructorFunction);
+      extendExpression.expression.arguments.splice(1, 1, constructorFunction);
+
+      if (superClassDeclaration) {
+        var wrapper = express('(function(){})()').expression;
+        var body = wrapper.callee.body.body;
+        var returnStatement = new nodes.ReturnStatement({
+          argument: extendExpression.expression
+        });
+
+        body.push(superClassDeclaration);
+        body.push(returnStatement);
+        node.parentNode.replaceChild(node, wrapper);
+      } else {
+        node.parentNode.replaceChild(node, extendExpression.expression);
+      }
+
+    } else {
+      node.parentNode.replaceChild(node, constructorFunction);
+      insertAfter(constructorFunction, extendExpression);
+      if (superClassDeclaration) insertBefore(constructorFunction, superClassDeclaration);
     }
-
-    if (superClassDeclaration) insertBefore(constructorFunction, superClassDeclaration);
-    if (prototypeExpression) insertAfter(constructorFunction, prototypeExpression);
 
   });
 }
