@@ -648,57 +648,54 @@ function classify(program) {
 
   program.search('#Class').forEach(function(node) {
     var definitions = node.body.body;
-
+    var name = node.id.name;
     var scope = node.scope();
-
-    var superClass = node.superClass;
     var extendId = getExtendId(program).clone();
+    var superClass = node.superClass;
 
     var superClassDeclaration;
 
     if (superClass && superClass.type !== syntax.Identifier) {
-      var superClassId = getUniqueId(scope, 'Super' + capitalize(node.id.name));
+      var superClassId = getUniqueId(scope, 'Super' + capitalize(name));
       superClassDeclaration = new nodes.VariableDeclaration({
         declarations: [ new nodes.VariableDeclarator({ id: superClassId, init: superClass }) ]
       });
       superClass = node.superClass = superClassId.clone();
     }
 
+    var constructorMethod = !!definitions.search('> #MethodDefinition > key[name=constructor]').length;
+
+    if (!constructorMethod) definitions.unshift(new nodes.MethodDefinition({
+      key: new nodes.Identifier({ name: 'constructor' }),
+      value: superClass ?
+        express('(function ' + name + '(...rest) { super(...rest); })').expression :
+        express('(function ' + name + '() {})').expression
+    }));
+
     if (superClass) definitions.search('>> #CallExpression > callee#Identifier[name=super]').forEach(function(id) {
       var call = id.parentNode;
       var definition = call.parent('#MethodDefinition');
+      if (definition.static) return;
+
       var methodId = definition.key;
+      var methodName = methodId.name
+
+      var superMethodXp = methodName === 'constructor' ?
+        superClass.clone() :
+        express(superClass.name + '.prototype.' + methodName).expression;
 
       var definitionFunction = definition.value;
 
-      var superCallExpression;
-      if (methodId.name === 'constructor') {
-        superCallExpression = superClass.clone();
-      } else {
-        superCallExpression = express(superClass.name + '.prototype.' + methodId.name).expression;
-      }
+      var selfId = (id.scope() !== definitionFunction) ? getSelfId(definitionFunction) : new nodes.ThisExpression;
 
-      var scope = id.scope();
-      var selfId;
+      call.callee = superMethodXp;
 
-      if (scope !== definitionFunction) selfId = getSelfId(definitionFunction);
-      else selfId = new nodes.ThisExpression;
-
-      call.callee = superCallExpression;
       applyContext(call, selfId);
     });
 
     var constructorFunction = definitions.search('> #MethodDefinition > key[name=constructor] < * > value')[0];
-
-    if (constructorFunction) {
-      constructorFunction.id = node.id;
-      definitions.removeChild(constructorFunction.parentNode);
-      constructorFunction = new nodes.FunctionDeclaration(constructorFunction);
-    } else {
-      constructorFunction = express('function ' + node.id.name + '() {' +
-        (superClass ? ('return ' + superClass.name + '.apply(this, arguments)') : '') +
-      '}');
-    }
+    definitions.removeChild(constructorFunction.parentNode);
+    constructorFunction = new nodes.FunctionDeclaration(constructorFunction);
 
     if (!superClass) superClass = new nodes.Identifier({ name: 'Object' });
 
@@ -718,22 +715,16 @@ function classify(program) {
 
     if (node.type === syntax.ClassExpression) {
 
-      constructorFunction = new nodes.FunctionExpression(constructorFunction);
-      extendExpression.expression.arguments.splice(1, 1, constructorFunction);
+      var wrapper = express('(function(){})()').expression;
+      var body = wrapper.callee.body.body;
+      var returnStatement = new nodes.ReturnStatement({
+        argument: extendExpression.expression
+      });
 
-      if (superClassDeclaration) {
-        var wrapper = express('(function(){})()').expression;
-        var body = wrapper.callee.body.body;
-        var returnStatement = new nodes.ReturnStatement({
-          argument: extendExpression.expression
-        });
-
-        body.push(superClassDeclaration);
-        body.push(returnStatement);
-        node.parentNode.replaceChild(node, wrapper);
-      } else {
-        node.parentNode.replaceChild(node, extendExpression.expression);
-      }
+      if (superClassDeclaration) body.push(superClassDeclaration);
+      body.push(constructorFunction);
+      body.push(returnStatement);
+      node.parentNode.replaceChild(node, wrapper);
 
     } else {
       node.parentNode.replaceChild(node, constructorFunction);
@@ -884,8 +875,7 @@ function blockify(program) {
   var statementBodies = [
     '#IfStatement > alternate', '#IfStatement > consequent',
     '#ForStatement > body', '#ForInStatement > body', '#ForOfStatement > body',
-    '#WhileStatement > body', '#DoWhileStatement > body',
-    '#LabeledStatement > body'
+    '#WhileStatement > body', '#DoWhileStatement > body'
   ].map(function(type) {
     return type + '[type!=BlockStatement]';
   });
@@ -914,7 +904,6 @@ function transform(tree) {
 
   deshorthandify(program); // remove shorthand properties
   arrowify(program); // transform arrow functions
-  restify(program); // transform rest parameter
 
   comprehendify(program); // transform comprehensions
 
@@ -924,6 +913,8 @@ function transform(tree) {
   defaultify(program); // transform default parameters
 
   classify(program); // transform classes
+
+  restify(program); // transform rest parameter
 
   spreadify(program); // transform spread
 
