@@ -668,33 +668,53 @@ function classify(program) {
     if (!constructorMethod) definitions.unshift(new nodes.MethodDefinition({
       key: new nodes.Identifier({ name: 'constructor' }),
       value: superClass ?
-        express('(function ' + name + '(...rest) { super(...rest); })').expression :
-        express('(function ' + name + '() {})').expression
+        express('(function (...rest) { super(...rest); })').expression :
+        express('(function () {})').expression
     }));
 
-    if (superClass) definitions.search('>> #CallExpression > callee#Identifier[name=super]').forEach(function(id) {
-      var call = id.parentNode;
-      var definition = call.parent('#MethodDefinition');
-      if (definition.static) return;
+    if (superClass) {
 
-      var methodId = definition.key;
-      var methodName = methodId.name
+      var q = [
+        '>> #CallExpression > callee#MemberExpression[computed=false] > object#Identifier[name=super]',
+        '>> #CallExpression > callee#Identifier[name=super]'
+      ];
 
-      var superMethodXp = methodName === 'constructor' ?
-        superClass.clone() :
-        express(superClass.name + '.prototype.' + methodName).expression;
+      definitions.search(q).forEach(function(id) {
+        var definition = id.parent('#MethodDefinition');
+        if (definition.static) return;
 
-      var definitionFunction = definition.value;
+        var parentNode = id.parentNode;
 
-      var selfId = (id.scope() !== definitionFunction) ? getSelfId(definitionFunction) : new nodes.ThisExpression;
+        var callExpression, methodName;
 
-      call.callee = superMethodXp;
+        if (parentNode.type === syntax.MemberExpression) {
+          callExpression = parentNode.parentNode;
+          methodName = parentNode.property.name;
+        } else {
+          callExpression = parentNode;
+          methodName = definition.key.name;
+        }
 
-      applyContext(call, selfId);
-    });
+        var superMethodXp = methodName === 'constructor' ?
+          superClass.clone() :
+          express(superClass.name + '.prototype.' + methodName).expression;
+
+        var definitionFunction = definition.value;
+
+        var selfId = (id.scope() !== definitionFunction) ? getSelfId(definitionFunction) : new nodes.ThisExpression;
+
+        callExpression.callee = superMethodXp;
+
+        applyContext(callExpression, selfId);
+      });
+
+
+    }
 
     var constructorFunction = definitions.search('> #MethodDefinition > key[name=constructor] < * > value')[0];
+    constructorFunction.id = node.id;
     definitions.removeChild(constructorFunction.parentNode);
+
     constructorFunction = new nodes.FunctionDeclaration(constructorFunction);
 
     if (!superClass) superClass = new nodes.Identifier({ name: 'Object' });
@@ -777,7 +797,7 @@ function templateify(program) {
 
     // now reduce the parts to a single BinaryExpression (if parts are left)
 
-    var binaryExpression = parts.reduceRight(function(bin, part, i) {
+    parts.reduceRight(function(bin, part) {
 
       return bin.left = new nodes.BinaryExpression({
         operator: '+',
@@ -831,7 +851,6 @@ function letify(program) {
 
   // find referenced lets, rename declaration and reference
   program.search(':reference').forEach(function(ref) {
-    var parent = ref.parentNode;
 
     var result = lookupReferenceLetDeclarators(ref);
     if (!result) return;
