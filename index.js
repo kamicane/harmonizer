@@ -832,6 +832,10 @@ var lookupReferenceLetDeclarators = function(node) {
 
 function letify(program) {
 
+  var lets = program.search('#VariableDeclaration[kind=let]');
+
+  if (!lets.length) return;
+
   var uniqueNameMap = {};
 
   // find referenced lets, rename declaration and reference
@@ -858,8 +862,6 @@ function letify(program) {
 
     ref.name = map[name];
   });
-
-  var lets = program.search('#VariableDeclaration[kind=let]');
 
   lets.forEach(function(node) {
     node.kind = 'var';
@@ -908,8 +910,6 @@ function blockify(program) {
 function transform(tree) {
   var program = build(tree);
 
-  window.program = program;
-
   blockify(program); // normalize the program
 
   deshorthandify(program); // remove shorthand properties
@@ -931,7 +931,7 @@ function transform(tree) {
 
   letify(program); // transform let
 
-  return program;
+  return program.toJSON();
 }
 
 module.exports = transform;
