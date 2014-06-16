@@ -81,7 +81,7 @@ var getSelfId = function(node) {
 var spread = function() {
   var array = [], last = arguments.length - 1;
   for (var i = 0; i < last; i++) array.push(arguments[i]);
-  var iterator = arguments[last][Symbol.iterator](), step;
+  var iterator = arguments[last]['@@iterator'](), step;
   while (!(step = iterator.next()).done) array.push(step.value);
   return array;
 };
@@ -454,7 +454,7 @@ function forofify(program) {
       callee: new nodes.MemberExpression({
         computed: true,
         object: node.right,
-        property: express('Symbol.iterator').expression
+        property: new nodes.Literal({ value: '@@iterator' })
       })
     });
 
@@ -668,7 +668,7 @@ function classify(program) {
     if (!constructorMethod) definitions.unshift(new nodes.MethodDefinition({
       key: new nodes.Identifier({ name: 'constructor' }),
       value: superClass ?
-        express('(function (...rest) { super(...rest); })').expression :
+        express('(function () { ' + superClass.name + '.apply(this, arguments); })').expression :
         express('(function () {})').expression
     }));
 
@@ -707,7 +707,6 @@ function classify(program) {
 
         applyContext(callExpression, selfId);
       });
-
 
     }
 
