@@ -163,10 +163,6 @@ var createAssignment = function(left, right) {
   });
 };
 
-// # pretty numbers
-
-// var numbers = ['zero', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
-
 var destruct = {
 
   ArrayPattern: function(pattern, declarations, valueId, assign) {
@@ -229,7 +225,7 @@ function patternify(program) {
 
   var q;
 
-  // transform forOf, forIn
+  // transform forOf, forIn declaration pattern
   q = ['#ForOfStatement > left > declarations > * > #ArrayPattern',
       '#ForOfStatement > left > declarations > * > #ObjectPattern',
       '#ForInStatement > left > declarations > * > #ArrayPattern',
@@ -428,18 +424,10 @@ function restify(program) {
 // transform arrow functions
 function arrowify(program) {
 
-  program.search('#ArrowFunctionExpression #ThisExpression').forEach(function(thisExpression) {
-    var arrowFunction, selfScope = thisExpression;
-
-    while (selfScope = selfScope.scope()) {
-      if (selfScope.type === syntax.ArrowFunctionExpression) arrowFunction = selfScope;
-      else break;
-    }
-
-    if (!arrowFunction) return;
-
-    var selfId = getSelfId(arrowFunction.scope());
-
+  program.search('#ArrowFunctionExpression => #ThisExpression').forEach(function(thisExpression) {
+    var arrowFunction = thisExpression.scope();
+    var arrowScope = arrowFunction.scope('[type!=ArrowFunctionExpression]');
+    var selfId = getSelfId(arrowScope);
     thisExpression.parentNode.replaceChild(thisExpression, selfId.clone());
   });
 
@@ -676,9 +664,8 @@ function classify(program) {
       superClass = node.superClass = superClassId.clone();
     }
 
-    definitions.search('#CallExpression > callee#Identifier[name=super]').forEach(function(id) {
+    if (superClass) definitions.search('>> #CallExpression > callee#Identifier[name=super]').forEach(function(id) {
       var call = id.parentNode;
-      if (call.parent('#Class') !== node) return; // nested classes ? idk. todo: traverse with skip nodes
       var definition = call.parent('#MethodDefinition');
       var methodId = definition.key;
 
@@ -815,6 +802,80 @@ function templateify(program) {
 
 }
 
+var isFor = function(node) {
+  var type;
+  return node && (type = node.type) && (
+    type === syntax.ForStatement ||
+    type === syntax.ForInStatement ||
+    type === syntax.ForOfStatement
+  );
+};
+
+var lookupReferenceLetDeclarators = function(node) {
+  var name = node.name;
+  var identifiers;
+
+  var dec = '#VariableDeclaration[kind=let] #Identifier:declaration[name=' + name + ']';
+
+  while (node = node.parentNode) {
+    if (isFor(node) || node.type === syntax.BlockStatement || node.type === syntax.Program) {
+      identifiers = node.search('~> ' + dec);
+      if (identifiers.length) {
+        var ancestor = node.parentNode;
+        if (isFor(ancestor)) node = ancestor;
+        return [node, identifiers];
+      }
+    }
+
+  }
+};
+
+function letify(program) {
+
+  var uniqueNameMap = {};
+
+  // find referenced lets, rename declaration and reference
+  program.search(':reference').forEach(function(ref) {
+    var parent = ref.parentNode;
+
+    var result = lookupReferenceLetDeclarators(ref);
+    if (!result) return;
+
+    var block = result[0], identifiers = result[1];
+
+    var map = uniqueNameMap[block.uid] || (uniqueNameMap[block.uid] = {});
+
+    var scope = block === program ? block : block.scope();
+
+    var name = ref.name;
+
+    identifiers.forEach(function(dec) {
+
+      var uniqueName = map[name] || (map[name] = getUniqueName(scope, name));
+      dec.var_name = uniqueName; // save its var_name
+
+    });
+
+    ref.name = map[name];
+  });
+
+  var lets = program.search('#VariableDeclaration[kind=let]');
+
+  lets.forEach(function(node) {
+    node.kind = 'var';
+  });
+
+  lets.search('#Identifier:declaration').forEach(function(node) {
+    if (node.var_name) {
+      node.name = node.var_name;
+      delete node.var_name;
+    } else {
+      var uniqueName = getUniqueName(node.scope(), node.name);
+      node.name = uniqueName;
+    }
+  });
+}
+
 // add blocks, fix ast woes
 function blockify(program) {
 
@@ -847,6 +908,8 @@ function blockify(program) {
 function transform(tree) {
   var program = build(tree);
 
+  window.program = program;
+
   blockify(program); // normalize the program
 
   deshorthandify(program); // remove shorthand properties
@@ -865,7 +928,8 @@ function transform(tree) {
   spreadify(program); // transform spread
 
   templateify(program); // transform string templates
-  // letify(program); // transform let
+
+  letify(program); // transform let
 
   return program;
 }
