@@ -22,14 +22,14 @@ npm publish
 you can watch source files for changes:
 
 ```
-harmonize --input ./ --output /path/to/project/compiled
+harmonize --input ./ --output /path/to/project/compiled --watch
 ```
 
 ## commonJS api
 
 It requires a javascript parser that is able to parse es6 syntax, such as esprima#harmony.
 
-```
+```js
 var esprima = require('esprima'); // ariya/esprima#harmony
 var escodegen = require('escodegen');
 var harmonize = require('harmonizer');
