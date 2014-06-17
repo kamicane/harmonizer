@@ -4,13 +4,17 @@
   "description": "es6 to es5 transpiler",
   "main": "index.js",
   "dependencies": {
+    "chokidar": "^0.8.2",
     "esprima": "ariya/esprima#harmony",
+    "minimatch": "^0.3.0",
+    "minimist": "^0.1.0",
+    "mkdirp": "^0.5.0",
     "nodes": "kamicane/nodes#master"
   },
-  "devDependencies": {},
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+  "bin": {
+    "harmonize": "./harmonize"
   },
+  "devDependencies": {},
   "repository": {
     "type": "git",
     "url": "https://github.com/kamicane/harmonizer.git"

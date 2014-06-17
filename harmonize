@@ -1,0 +1,133 @@
+#!/usr/bin/env node
+'use strict';
+
+var fs = require('fs');
+var path = require('path');
+var minimatch = require('minimatch');
+var mkdirp = require('mkdirp');
+var chokidar = require('chokidar');
+var minimist = require('minimist');
+
+var esprima = require('esprima');
+var escodegen = require('escodegen');
+
+var harmonize = require('./index');
+
+// #
+
+var argv = minimist(process.argv.slice(2));
+
+if (!argv.output || !argv.input) process.exit(1);
+
+var sourceDir = path.resolve(argv.input);
+var outputDir = path.resolve(argv.output);
+
+if (sourceDir === outputDir) process.exit(1);
+
+var ignored = [
+  'node_modules/**/*',
+  '.*.swp',
+  '._*',
+  '.DS_Store',
+  '.git',
+  '.hg',
+  '.lock-wscript',
+  '.svn',
+  '.wafpickle-*',
+  'CVS',
+  'npm-debug.log'
+];
+
+ignored.push(path.relative(sourceDir, outputDir));
+
+var watcher = chokidar.watch(sourceDir, { ignored: function(input) {
+  var relative = path.relative(sourceDir, input);
+
+  for (var i = 0; i < ignored.length; i++) {
+    var pattern = ignored[i];
+    if (minimatch(relative, pattern, { matchBase: true, dot: true })) return true;
+
+  }
+}, persistent: !!argv.watch });
+
+var beep = function() {
+  process.stderr.write('\x07'); // beep!
+};
+
+var check = function(input) {
+
+  console.log(input);
+
+  var relative = path.relative(sourceDir, input);
+  var output = path.join(outputDir, relative);
+
+  if (path.extname(input) !== '.js') {
+    passthru(input, output);
+  } else {
+    try {
+      compile(input, output);
+    } catch(error) {
+      report(input, output, error);
+    }
+  }
+
+};
+
+var cache = {};
+
+var compile = function(input, output) {
+  var old = cache[input];
+  var source = fs.readFileSync(input).toString();
+  if (source === old) return;
+
+  cache[input] = source;
+
+  var ast = esprima.parse(source);
+
+  var harmonized = harmonize(ast);
+
+  var code = escodegen.generate(harmonized, {
+    format: {
+      indent: { style: '  ' },
+      quotes: 'single'
+    }
+  });
+
+  mkdirp.sync(path.dirname(output));
+  fs.writeFileSync(output, code);
+
+  console.warn('harmonized', path.relative(process.cwd(), input), 'to', path.relative(process.cwd(), output));
+};
+
+var passthru = function(input, output) {
+  var file = fs.readFileSync(input);
+  mkdirp.sync(path.dirname(output));
+  fs.writeFileSync(output, file);
+  console.warn('copied', path.relative(process.cwd(), input), 'to', path.relative(process.cwd(), output));
+};
+
+var report = function(input, output, error) {
+  beep(); beep();
+
+  fs.writeFileSync(output, '');
+  console.warn('error harmonizing', path.relative(process.cwd(), input), 'to', path.relative(process.cwd(), output));
+  console.error(error);
+};
+
+watcher.on('change', check);
+watcher.on('add', check);
+
+watcher.on('unlink', function(input) {
+  if (path.extname(input) === '.js') delete cache[input];
+
+  var relative = path.relative(sourceDir, input);
+  var output = path.join(outputDir, relative);
+
+  fs.unlinkSync(output);
+
+  try {
+    fs.rmdirSync(path.dirname(output));
+  } catch(e) {}
+
+  console.warn('removed', path.relative(process.cwd(), output));
+});

@@ -5,20 +5,17 @@ var esprima = require('esprima');
 var build = require('nodes');
 var syntax = require('nodes/syntax.json');
 
-var nodes = build.nodes;
-var List = build.lists.List;
+var { nodes, lists: { List } } = build;
+
+var { keys, values, entries } = require('./util/iterators');
 
 // string
 
-var capitalize = function(string) {
-  return string.replace(/(?:^|\s)\S/g, function(a) { return a.toUpperCase(); });
-};
+var capitalize = (string) => string.replace(/(?:^|\s)\S/g, (a) => a.toUpperCase());
 
-var lowerFirst = function(string) {
-  return string.replace(/^[A-Z]/, function(a) { return a.toLowerCase(); });
-};
+var lowerFirst = (string) => string.replace(/^[A-Z]/, (a) => a.toLowerCase());
 
-var listIndex = function(node) {
+var listIndex = (node) => {
   var lastNode = node, firstList;
   while (node = node.parentNode) {
     if (node instanceof List) {
@@ -35,39 +32,37 @@ var listIndex = function(node) {
 
 // insertBefore
 
-var insertBefore = function(node, node2) {
+var insertBefore = (node, node2) => {
   var li = listIndex(node);
   li.list.splice(li.index, 0, node2);
 };
 
-var insertAfter = function(node, node2) {
+var insertAfter = (node, node2) => {
   var li = listIndex(node);
   li.list.splice(li.index + 1, 0, node2);
 };
 
 // expression
 
-var express = function(string) {
-  return build(esprima.parse(string).body[0]);
-};
+var express = (string) => build(esprima.parse(string).body[0]);
 
-var getUniqueName = function(node, name) {
+var getUniqueName = (node, name) => {
   var names = node.search('#Identifier:declaration > name, #Identifier:reference > name');
-  while (~names.indexOf(name)) name = '_' + name;
+  while (~names.indexOf(name)) name = `_${name}`;
   return name;
 };
 
-var getUniqueId = function(node, name) {
+var getUniqueId = (node, name) => {
   name = getUniqueName(node, name);
-  return new nodes.Identifier({ name: name });
+  return new nodes.Identifier({ name });
 };
 
 // # util definitions
 
-var getSelfId = function(node) {
+var getSelfId = (node) => {
   if (!node.selfId) {
     var selfName = getUniqueName(node, 'self');
-    var declaration = express('var ' + selfName + ' = this');
+    var declaration = express(`var ${selfName} = this`);
     var id = declaration.declarations[0].id;
     var body = nodes.Function.test(node) ? node.body.body : node.body;
     body.unshift(declaration);
@@ -78,7 +73,7 @@ var getSelfId = function(node) {
   return node.selfId.clone();
 };
 
-var spread = function() {
+var spread = () => {
   var array = [], last = arguments.length - 1;
   for (var i = 0; i < last; i++) array.push(arguments[i]);
   var iterator = arguments[last]['@@iterator'](), step;
@@ -86,8 +81,8 @@ var spread = function() {
   return array;
 };
 
-var extend = function(SuperClass, Class, prototype, members) {
-  var descriptors = function(base, object) {
+var extend = (SuperClass, Class, prototype, members) => {
+  var descriptors = (base, object) => {
     for (var key in object) base[key] = Object.getOwnPropertyDescriptor(object, key);
     return base;
   };
@@ -97,17 +92,10 @@ var extend = function(SuperClass, Class, prototype, members) {
   return Object.defineProperties(Class, descriptors({}, members));
 };
 
-var getSuperDescriptor = function(prototype, name) {
-  var descriptor;
-  while (prototype = Object.getPrototypeOf(prototype)) {
-    if (descriptor = Object.getOwnPropertyDescriptor(prototype, name)) return descriptor;
-  }
-};
-
-var getExtendId = function(node) {
+var getExtendId = (node) => {
   if (!node.extendId) {
     var extendName = getUniqueName(node, 'extend');
-    var declaration = express('var ' + extendName + ' = ' + extend.toString());
+    var declaration = express(`var ${extendName} = ${extend}`);
     var id = declaration.declarations[0].id;
     var body = nodes.Function.test(node) ? node.body.body : node.body;
     body.unshift(declaration);
@@ -118,10 +106,10 @@ var getExtendId = function(node) {
   return node.extendId;
 };
 
-var getSpreadId = function(node) {
+var getSpreadId = (node) => {
   if (!node.spreadId) {
     var spreadName = getUniqueName(node, 'spread');
-    var declaration = express('var ' + spreadName + ' = ' + spread.toString());
+    var declaration = express(`var ${spreadName} = ${spread}`);
     var id = declaration.declarations[0].id;
     var body = nodes.Function.test(node) ? node.body.body : node.body;
     body.unshift(declaration);
@@ -132,10 +120,10 @@ var getSpreadId = function(node) {
   return node.spreadId;
 };
 
-var getSliceId = function(node) {
+var getSliceId = (node) => {
   if (!node.sliceId) {
     var sliceName = getUniqueName(node, 'slice');
-    var declaration = express('var ' + sliceName + ' = Array.prototype.slice');
+    var declaration = express(`var ${sliceName} = Array.prototype.slice`);
     var id = declaration.declarations[0].id;
     var body = nodes.Function.test(node) ? node.body.body : node.body;
     body.unshift(declaration);
@@ -148,31 +136,20 @@ var getSliceId = function(node) {
 
 // # create nodes
 
-var createDeclarator = function(id, init) {
-  return new nodes.VariableDeclarator({
-    id: id,
-    init: init
-  });
-};
+var createDeclarator = (id, init) => new nodes.VariableDeclarator({ id, init });
 
-var createAssignment = function(left, right) {
-  return new nodes.AssignmentExpression({
-    operator: '=',
-    left: left,
-    right: right
-  });
-};
+var createAssignment = (left, right) => new nodes.AssignmentExpression({ operator: '=', left, right });
 
 var destruct = {
 
-  ArrayPattern: function(pattern, declarations, valueId, assign) {
+  ArrayPattern(pattern, declarations, valueId, assign) {
 
     var create = assign ? createAssignment : createDeclarator;
 
     pattern.elements.forEachRight(function(element, i) {
       if (element == null) return; // empty [,x]
 
-      var memberString = valueId ? valueId.name + '[' + i + ']' : null;
+      var memberString = valueId ? `${valueId.name}[${i}]` : null;
 
       if (element.type === syntax.Identifier) {
         declarations.unshift(create(element, memberString ? express(memberString).expression : null));
@@ -181,7 +158,7 @@ var destruct = {
 
         if (valueId) {
           nestedId = getUniqueId(declarations.scope(), valueId.name + i);
-          var declaration = express('var ' + nestedId.name + ' = ' + memberString);
+          var declaration = express(`var ${nestedId.name} = ${memberString}`);
           insertBefore(declarations, declaration);
         }
 
@@ -191,12 +168,13 @@ var destruct = {
     });
   },
 
-  ObjectPattern: function(pattern, declarations, valueId, assign) {
+  ObjectPattern(pattern, declarations, valueId, assign) {
+
     var create = assign ? createAssignment : createDeclarator;
 
-    pattern.properties.forEachRight(function(property) {
+    pattern.properties.forEachRight((property) => {
 
-      var memberString = valueId ? valueId.name + '.' + property.key.name : null;
+      var memberString = valueId ? `${valueId.name}.${property.key.name}` : null;
 
       var value = property.value;
 
@@ -208,7 +186,7 @@ var destruct = {
 
         if (valueId) {
           nestedId = getUniqueId(declarations.scope(), valueId.name + capitalize(property.key.name));
-          var declaration = express('var ' + nestedId.name + ' = ' + memberString);
+          var declaration = express(`var ${nestedId.name} = ${memberString}`);
           insertBefore(declarations, declaration);
         }
 
@@ -231,7 +209,7 @@ function patternify(program) {
       '#ForInStatement > left > declarations > * > #ArrayPattern',
       '#ForInStatement > left > declarations > * > #ObjectPattern'];
 
-  program.search(q).forEachRight(function(pattern) {
+  program.search(q).forEachRight((pattern) => {
     var declarator = pattern.parentNode;
     var declarations = declarator.parentNode;
     var declaration = declarations.parentNode;
@@ -261,7 +239,7 @@ function patternify(program) {
 
     var valueId = getUniqueId(forStatement.scope(), lowerFirst(pattern.type));
 
-    forStatement.left = express('var ' + valueId.name);
+    forStatement.left = express(`var ${valueId.name}`);
 
     var expression = new nodes.ExpressionStatement;
     var sequence = new nodes.SequenceExpression;
@@ -273,7 +251,7 @@ function patternify(program) {
   // transform declarators
   q = '#VariableDeclarator > #ArrayPattern, #VariableDeclarator > #ObjectPattern';
 
-  program.search(q).forEachRight(function(pattern) {
+  program.search(q).forEachRight((pattern) => {
 
     var declarator = pattern.parentNode;
     var declarations = declarator.parentNode;
@@ -297,7 +275,7 @@ function patternify(program) {
       } else {
 
         valueId = getUniqueId(declarations.scope(), lowerFirst(pattern.type));
-        var valueDeclaration = express('var ' + valueId.name + ' = $');
+        var valueDeclaration = express(`var ${valueId.name} = $`);
         valueDeclaration.declarations[0].init = declarator.init;
         insertBefore(declarations, valueDeclaration);
 
@@ -311,7 +289,7 @@ function patternify(program) {
   // transform assignments
   q = '#AssignmentExpression > left#ArrayPattern, #AssignmentExpression > left#ObjectPattern';
 
-  program.search(q).forEachRight(function(pattern) {
+  program.search(q).forEachRight((pattern) => {
 
     var expression = pattern.parentNode; // AssignmentExpression
     var right = expression.right;
@@ -341,7 +319,7 @@ function patternify(program) {
       valueId = right;
     } else {
       valueId = getUniqueId(sequence.scope(), lowerFirst(pattern.type));
-      var declaration = express('var ' + valueId.name + ' = $');
+      var declaration = express(`var ${valueId.name} = $`);
       declaration.declarations[0].init = right;
       insertBefore(sequence, declaration);
     }
@@ -352,7 +330,7 @@ function patternify(program) {
   // transform function params
   q = '#Function > params > #ArrayPattern, #Function > params > #ObjectPattern';
 
-  program.search(q).forEachRight(function(pattern) {
+  program.search(q).forEachRight((pattern) => {
     var params = pattern.parentNode;
     var fn = params.parentNode;
 
@@ -372,17 +350,17 @@ function patternify(program) {
 
 function defaultify(program) {
 
-  program.search('#Function').forEach(function(fn) {
+  program.search('#Function').forEach((fn) => {
     if (fn.defaults.length === 0) return;
 
     var params = fn.params;
     var defaults = fn.defaults;
 
-    defaults.forEachRight(function(node, i) {
+    defaults.forEachRight((node, i) => {
       if (node == null) return defaults.removeChild(node);
 
       var param = params[i];
-      var statement = express('if (' + param.name + ' === void 0) ' + param.name + ' = $');
+      var statement = express(`if (${param.name} === void 0) ${param.name} = $`);
       statement.consequent.expression.right = node;
       fn.body.body.unshift(statement);
     });
@@ -392,7 +370,7 @@ function defaultify(program) {
 
 // remove property shorthand and method shorthand
 function deshorthandify(program) {
-  program.search('#Property').forEach(function(node) {
+  program.search('#Property').forEach((node) => {
     node.shorthand = false;
     node.method = false;
   });
@@ -402,16 +380,13 @@ function deshorthandify(program) {
 // transform rest param
 function restify(program) {
 
-  program.search('#Function[rest!=null]').forEach(function(node) {
+  program.search('#Function[rest!=null]').forEach((node) => {
     var block = node.body.body;
     var length = node.params.length;
 
     var sliceId = getSliceId(program).clone();
 
-    var declaration = express(
-      'var ' + node.rest.name + ' = ' +
-      sliceId.name + '.call(arguments' + (length === 0 ? '' : ', ' + length) + ')'
-    );
+    var declaration = express(`var ${node.rest.name} = ${sliceId.name}.call(arguments, ${length})`);
 
     node.rest = null;
 
@@ -424,14 +399,14 @@ function restify(program) {
 // transform arrow functions
 function arrowify(program) {
 
-  program.search('#ArrowFunctionExpression => #ThisExpression').forEach(function(thisExpression) {
+  program.search('#ArrowFunctionExpression => #ThisExpression').forEach((thisExpression) => {
     var arrowFunction = thisExpression.scope();
     var arrowScope = arrowFunction.scope('[type!=ArrowFunctionExpression]');
     var selfId = getSelfId(arrowScope);
     thisExpression.parentNode.replaceChild(thisExpression, selfId.clone());
   });
 
-  program.search('#ArrowFunctionExpression').forEach(function(node) {
+  program.search('#ArrowFunctionExpression').forEach((node) => {
     var shallow = new nodes.FunctionExpression(node);
     node.parentNode.replaceChild(node, shallow);
   });
@@ -439,7 +414,7 @@ function arrowify(program) {
 
 function forofify(program) {
 
-  program.search('#ForOfStatement').forEach(function(node) {
+  program.search('#ForOfStatement').forEach((node) => {
 
     var forStatement = new nodes.ForStatement;
 
@@ -470,9 +445,9 @@ function forofify(program) {
        ]
     });
 
-    forStatement.test = express('!(' + stepId.name + ' = ' + iteratorId.name + '.next()).done').expression;
+    forStatement.test = express(`!(${stepId.name} = ${iteratorId.name}.next()).done`).expression;
 
-    var expression, xp = express(stepId.name + '.value').expression;
+    var expression, xp = express(`${stepId.name}.value`).expression;
 
     if (left.type === syntax.VariableDeclaration) {
       left.declarations[0].init = xp;
@@ -492,7 +467,7 @@ function forofify(program) {
   });
 }
 
-var applyContext = function(node, context) {
+var applyContext = (node, context) => {
   var args = node.arguments;
   var spread = args[args.length - 1];
 
@@ -503,9 +478,9 @@ var applyContext = function(node, context) {
 
     var spreadId = getSpreadId(node.root).clone();
 
-    var spreadCall = express(spreadId.name + '()').expression;
+    var spreadCall = express(`${spreadId.name}()`).expression;
 
-    spreadCall.arguments.push.apply(spreadCall.arguments, args);
+    spreadCall.arguments.push(...values(args));
 
     args.push(spreadCall);
 
@@ -526,7 +501,7 @@ var applyContext = function(node, context) {
 
       if (object.type !== syntax.Identifier) {
         var contextId = getUniqueId(node.scope(), lowerFirst(object.type));
-        var declaration = express('var ' + contextId.name + ' = $');
+        var declaration = express(`var ${contextId.name} = $`);
         var declarator = declaration.declarations[0];
         declarator.init = object;
         insertBefore(node, declaration);
@@ -549,11 +524,11 @@ var applyContext = function(node, context) {
 // I chose not to implement spread the "right" way until esprima gets fixed, since there is no js parser for it.
 function spreadify(program) {
 
-  program.search('#SpreadElement < arguments < #CallExpression').forEach(function(node) {
+  program.search('#SpreadElement < arguments < #CallExpression').forEach((node) => {
     applyContext(node);
   });
 
-  program.search('#SpreadElement < elements < #ArrayExpression').forEach(function(node) {
+  program.search('#SpreadElement < elements < #ArrayExpression').forEach((node) => {
 
     var elements = node.elements;
     var spread = elements[elements.length - 1];
@@ -562,9 +537,9 @@ function spreadify(program) {
 
     var spreadId = getSpreadId(program).clone();
 
-    var spreadCall = express(spreadId.name + '()').expression;
+    var spreadCall = express(`${spreadId.name}()`).expression;
 
-    spreadCall.arguments.push.apply(spreadCall.arguments, elements);
+    spreadCall.arguments.push(...values(elements));
 
     node.parentNode.replaceChild(node, spreadCall);
 
@@ -574,7 +549,7 @@ function spreadify(program) {
 
 function comprehendify(program) {
 
-  program.search('#ComprehensionExpression').forEach(function(node) {
+  program.search('#ComprehensionExpression').forEach((node) => {
     var parentNode = node.parentNode;
     var blocks = node.blocks;
 
@@ -594,7 +569,7 @@ function comprehendify(program) {
 
     var forOfRoot, forOfInnermost;
 
-    blocks.forEach(function(block) {
+    blocks.forEach((block) => {
       var forOfStatement = new nodes.ForOfStatement;
 
       forOfStatement.left = new nodes.VariableDeclaration({
@@ -610,7 +585,7 @@ function comprehendify(program) {
       forOfInnermost = forOfStatement;
     });
 
-    var pushCallExpression = express(comprehensionId.name + '.push()');
+    var pushCallExpression = express(`${comprehensionId.name}.push()`);
     pushCallExpression.expression.arguments.push(node.body);
     identifiers.push(pushCallExpression.expression.callee.object);
 
@@ -635,7 +610,7 @@ function comprehendify(program) {
 
     var comprehensionName = getUniqueName(wrapper.callee, 'comprehension');
 
-    identifiers.forEach(function(id) {
+    identifiers.forEach((id) => {
       id.name = comprehensionName;
     });
 
@@ -646,7 +621,7 @@ function comprehendify(program) {
 // todo: super accessors.
 function classify(program) {
 
-  program.search('#Class').forEach(function(node) {
+  program.search('#Class').forEach((node) => {
     var definitions = node.body.body;
     var name = node.id.name;
     var scope = node.scope();
@@ -656,7 +631,7 @@ function classify(program) {
     var superClassDeclaration;
 
     if (superClass && superClass.type !== syntax.Identifier) {
-      var superClassId = getUniqueId(scope, 'Super' + capitalize(name));
+      var superClassId = getUniqueId(scope, `Super${capitalize(name)}`);
       superClassDeclaration = new nodes.VariableDeclaration({
         declarations: [ new nodes.VariableDeclarator({ id: superClassId, init: superClass }) ]
       });
@@ -668,7 +643,7 @@ function classify(program) {
     if (!constructorMethod) definitions.unshift(new nodes.MethodDefinition({
       key: new nodes.Identifier({ name: 'constructor' }),
       value: superClass ?
-        express('(function () { ' + superClass.name + '.apply(this, arguments); })').expression :
+        express(`(function () { ${superClass.name}.apply(this, arguments); })`).expression :
         express('(function () {})').expression
     }));
 
@@ -679,7 +654,7 @@ function classify(program) {
         '>> #CallExpression > callee#Identifier[name=super]'
       ];
 
-      definitions.search(q).forEach(function(id) {
+      definitions.search(q).forEach((id) => {
         var definition = id.parent('#MethodDefinition');
         if (definition.static) return;
 
@@ -697,7 +672,7 @@ function classify(program) {
 
         var superMethodXp = methodName === 'constructor' ?
           superClass.clone() :
-          express(superClass.name + '.prototype.' + methodName).expression;
+          express(`${superClass.name}.prototype.${methodName}`).expression;
 
         var definitionFunction = definition.value;
 
@@ -707,6 +682,7 @@ function classify(program) {
 
         applyContext(callExpression, selfId);
       });
+
 
     }
 
@@ -721,7 +697,7 @@ function classify(program) {
     var prototype = new nodes.ObjectExpression;
     var members = new nodes.ObjectExpression;
 
-    definitions.forEach(function(definition) {
+    definitions.forEach((definition) => {
       (definition.static ? members : prototype).properties.push(new nodes.Property({
         key: definition.key,
         value: definition.value,
@@ -729,7 +705,7 @@ function classify(program) {
       }));
     });
 
-    var extendExpression = express(extendId.name + '()');
+    var extendExpression = express(`${extendId.name}()`);
     extendExpression.expression.arguments.push(superClass, constructorFunction.id.clone(), prototype, members);
 
     if (node.type === syntax.ClassExpression) {
@@ -757,7 +733,7 @@ function classify(program) {
 // todo: tagged template expressions
 function templateify(program) {
 
-  program.search('#TemplateLiteral').forEach(function(node) {
+  program.search('#TemplateLiteral').forEach((node) => {
 
     // create an ordered array of parts to concatenate
 
@@ -765,7 +741,7 @@ function templateify(program) {
 
     var stringFound;
 
-    node.quasis.forEach(function(quasi, i) {
+    node.quasis.forEach((quasi, i) => {
       var cooked = quasi.value.cooked;
       // filter out empty strings
       if (cooked) {
@@ -796,7 +772,7 @@ function templateify(program) {
 
     // now reduce the parts to a single BinaryExpression (if parts are left)
 
-    parts.reduceRight(function(bin, part) {
+    parts.reduceRight((bin, part) => {
 
       return bin.left = new nodes.BinaryExpression({
         operator: '+',
@@ -812,7 +788,7 @@ function templateify(program) {
 
 }
 
-var isFor = function(node) {
+var isFor = (node) => {
   var type;
   return node && (type = node.type) && (
     type === syntax.ForStatement ||
@@ -821,15 +797,15 @@ var isFor = function(node) {
   );
 };
 
-var lookupReferenceLetDeclarators = function(node) {
+var lookupReferenceLetDeclarators = (node) => {
   var name = node.name;
   var identifiers;
 
-  var dec = '#VariableDeclaration[kind=let] #Identifier:declaration[name=' + name + ']';
+  var dec = `#VariableDeclaration[kind=let] #Identifier:declaration[name=${name}]`;
 
   while (node = node.parentNode) {
     if (isFor(node) || node.type === syntax.BlockStatement || node.type === syntax.Program) {
-      identifiers = node.search('~> ' + dec);
+      identifiers = node.search(`~> ${dec}`);
       if (identifiers.length) {
         var ancestor = node.parentNode;
         if (isFor(ancestor)) node = ancestor;
@@ -849,12 +825,12 @@ function letify(program) {
   var uniqueNameMap = {};
 
   // find referenced lets, rename declaration and reference
-  program.search(':reference').forEach(function(ref) {
+  program.search(':reference').forEach((ref) => {
 
     var result = lookupReferenceLetDeclarators(ref);
     if (!result) return;
 
-    var block = result[0], identifiers = result[1];
+    var [block, identifiers] = result;
 
     var map = uniqueNameMap[block.uid] || (uniqueNameMap[block.uid] = {});
 
@@ -862,7 +838,7 @@ function letify(program) {
 
     var name = ref.name;
 
-    identifiers.forEach(function(dec) {
+    identifiers.forEach((dec) => {
 
       var uniqueName = map[name] || (map[name] = getUniqueName(scope, name));
       dec.var_name = uniqueName; // save its var_name
@@ -872,11 +848,11 @@ function letify(program) {
     ref.name = map[name];
   });
 
-  lets.forEach(function(node) {
+  lets.forEach((node) => {
     node.kind = 'var';
   });
 
-  lets.search('#Identifier:declaration').forEach(function(node) {
+  lets.search('#Identifier:declaration').forEach((node) => {
     if (node.var_name) {
       node.name = node.var_name;
       delete node.var_name;
@@ -887,24 +863,22 @@ function letify(program) {
   });
 }
 
-// add blocks, fix ast woes
+// add blocks
 function blockify(program) {
 
-  var statementBodies = [
+  var statementBodies = [for (selector of values([
     '#IfStatement > alternate', '#IfStatement > consequent',
     '#ForStatement > body', '#ForInStatement > body', '#ForOfStatement > body',
     '#WhileStatement > body', '#DoWhileStatement > body'
-  ].map(function(type) {
-    return type + '[type!=BlockStatement]';
-  });
+  ])) `${selector}[type!=BlockStatement]`];
 
-  program.search(statementBodies).forEach(function(statement) {
+  program.search(statementBodies).forEach((statement) => {
     var parentNode = statement.parentNode;
     var key = parentNode.indexOf(statement);
     parentNode[key] = new nodes.BlockStatement({ body: [ statement ] });
   });
 
-  program.search('#ArrowFunctionExpression[expression=true]').forEach(function(node) {
+  program.search('#ArrowFunctionExpression[expression=true]').forEach((node) => {
     node.expression = false;
     node.body = new nodes.BlockStatement({
       body: [ new nodes.ReturnStatement({ argument: node.body }) ]
