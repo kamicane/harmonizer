@@ -6,14 +6,25 @@ var { getUniqueName } = require('./id');
 var { express } = require('./string');
 
 var extend = (SuperClass, Class, prototype, members) => {
-  var descriptors = (base, object) => {
+  var descriptors = (object) => {
+    var base = {};
     for (var key in object) base[key] = Object.getOwnPropertyDescriptor(object, key);
     return base;
   };
-  Object.defineProperty(Class, 'prototype', {
-    value: Object.create(SuperClass.prototype, descriptors({ value: Class }, prototype))
-  });
-  return Object.defineProperties(Class, descriptors({}, members));
+
+  if (SuperClass) {
+    Class.__proto__ = SuperClass;
+    Object.defineProperty(Class, 'prototype', {
+      value: Object.create(SuperClass.prototype, descriptors(prototype))
+    });
+  } else {
+    Class.prototype = prototype;
+  }
+
+  Object.defineProperty(Class.prototype, 'constructor', { value: Class });
+
+  if (members) Object.defineProperties(Class, descriptors(members));
+  return Class;
 };
 
 exports.getExtendId = (node) => {

@@ -87,7 +87,7 @@ function classify(program) {
 
     constructorFunction = new nodes.FunctionDeclaration(constructorFunction);
 
-    if (!superClass) superClass = new nodes.Identifier({ name: 'Object' });
+    if (!superClass) superClass = new nodes.Identifier({ name: 'null' });
 
     var prototype = new nodes.ObjectExpression;
     var members = new nodes.ObjectExpression;
