@@ -4,7 +4,7 @@ var { nodes } = require('nodes');
 
 var letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
-var letter = function(i) {
+var letter = (i) => {
   if (i <= 25) return letters[i];
   return letter(Math.floor(i / 26) - 1) + letters[i % 26];
 };

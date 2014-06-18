@@ -1,5 +1,7 @@
 # harmonizer
 
+Live demo: http://kamicane.github.io/harmonizer-demo/
+
 A JavaScript es6 to es5 transpiler.
 It is written in es6 syntax, and it gets transpiled by itself.
 This project is to be considered in ALPHA.
