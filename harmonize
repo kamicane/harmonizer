@@ -11,7 +11,7 @@ var minimist = require('minimist');
 var esprima = require('esprima');
 var escodegen = require('escodegen');
 
-var harmonize = require('./index');
+var harmonize = require('./');
 
 // #
 
@@ -55,8 +55,6 @@ var beep = function() {
 };
 
 var check = function(input) {
-
-  console.log(input);
 
   var relative = path.relative(sourceDir, input);
   var output = path.join(outputDir, relative);
@@ -114,10 +112,7 @@ var report = function(input, output, error) {
   console.error(error);
 };
 
-watcher.on('change', check);
-watcher.on('add', check);
-
-watcher.on('unlink', function(input) {
+var unlink = function(input) {
   if (path.extname(input) === '.js') delete cache[input];
 
   var relative = path.relative(sourceDir, input);
@@ -130,4 +125,8 @@ watcher.on('unlink', function(input) {
   } catch(e) {}
 
   console.warn('removed', path.relative(process.cwd(), output));
-});
+};
+
+watcher.on('change', check);
+watcher.on('add', check);
+watcher.on('unlink', unlink);
