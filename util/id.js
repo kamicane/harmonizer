@@ -6,12 +6,7 @@ var letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
 var letter = function(i) {
   if (i <= 25) return letters[i];
-  var loops = -1;
-  while (i > 25) {
-    loops++;
-    i -= 26;
-  }
-  return letter(loops) + letters[i];
+  return letter(Math.floor(i / 26) - 1) + letters[i % 26];
 };
 
 exports.getUniqueName = (node, name) => {
