@@ -1,15 +1,29 @@
 'use strict';
 
 var { nodes } = require('nodes');
+var syntax = require('nodes/syntax.json');
+
 var { getSelfId } = require('../util/self');
+var { getArgumentsId } = require('../util/arguments');
 
 function arrowify(program) {
 
-  program.search('#ArrowFunctionExpression => #ThisExpression').forEach((thisExpression) => {
-    var arrowFunction = thisExpression.scope();
+  var q = [
+    '#ArrowFunctionExpression => #ThisExpression',
+    '#ArrowFunctionExpression => #Identifier:reference[name=arguments]'
+  ];
+
+  program.search(q).forEach((expression) => {
+    var arrowFunction = expression.scope();
     var arrowScope = arrowFunction.scope('[type!=ArrowFunctionExpression]');
-    var selfId = getSelfId(arrowScope).clone();
-    thisExpression.parentNode.replaceChild(thisExpression, selfId.clone());
+
+    var id;
+    if (expression.type === syntax.ThisExpression) {
+      id = getSelfId(arrowScope);
+    } else {
+      id = getArgumentsId(arrowScope);
+    }
+    expression.parentNode.replaceChild(expression, id.clone());
   });
 
   program.search('#ArrowFunctionExpression').forEach((node) => {
