@@ -13,9 +13,13 @@ var applyContext = (node, context) => {
   var args = node.arguments;
   var spread = args[args.length - 1];
 
+  var isSpread = spread && spread.type === syntax.SpreadElement;
+
+  if (!context && !isSpread) return;
+
   var propertyName;
 
-  if (spread && spread.type === syntax.SpreadElement) {
+  if (isSpread) {
     args.replaceChild(spread, spread.argument);
 
     var spreadId = getSpreadId(node.root).clone();
