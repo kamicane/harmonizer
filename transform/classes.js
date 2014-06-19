@@ -69,13 +69,11 @@ function classify(program) {
 
       var selfId;
 
-      // if (!definition.static) {
-        var definitionFunction = definition.value;
+      var definitionFunction = definition.value;
 
-        selfId = (id.scope() !== definitionFunction) ?
-          getSelfId(definitionFunction).clone() :
-          new nodes.ThisExpression;
-      // }
+      selfId = (id.scope() !== definitionFunction) ?
+        getSelfId(definitionFunction).clone() :
+        new nodes.ThisExpression;
 
       callExpression.callee = superMethodXp;
       applyContext(callExpression, selfId);
