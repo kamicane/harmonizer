@@ -6,7 +6,7 @@ var syntax = require('nodes/syntax.json');
 var { applyContext } = require('./spread');
 
 var { insertAfter } = require('../util/insertion');
-var { express } = require('../util/string');
+var { express, upper } = require('../util/string');
 var { getUniqueId } = require('../util/id');
 var { getExtendId } = require('../util/extend');
 var { getSelfId } = require('../util/self');
@@ -18,7 +18,7 @@ function classify(program) {
     var definitions = node.body.body;
 
     if (!node.id && node.parentNode.type === syntax.VariableDeclarator) {
-      node.id = node.parentNode.id.clone();
+      node.id = new nodes.Identifier({ name: upper(node.parentNode.id.name) });
     }
 
     if (!node.id) node.id = getUniqueId(node, 'Class');
@@ -102,12 +102,11 @@ function classify(program) {
     var extendExpression = express(`${extendId.name}()`);
     var args = extendExpression.expression.arguments;
 
-    args.push(superClass, constructorFunction.id.clone(), prototype);
-    if (members.properties.length) args.push(members);
-
     if (node.type === syntax.ClassExpression) {
 
       var wrapper = express('(function(){})()').expression;
+
+      wrapper.arguments.push(superClass);
       var body = wrapper.callee.body.body;
       var returnStatement = new nodes.ReturnStatement({
         argument: extendExpression.expression
@@ -118,10 +117,17 @@ function classify(program) {
 
       node.parentNode.replaceChild(node, wrapper);
 
+      superClass = getUniqueId(wrapper, 'Super' + upper(constructorFunction.id.name));
+
+      wrapper.callee.params.push(superClass.clone());
+
     } else {
       node.parentNode.replaceChild(node, constructorFunction);
       insertAfter(constructorFunction, extendExpression);
     }
+
+    args.push(superClass, constructorFunction.id.clone(), prototype);
+    if (members.properties.length) args.push(members);
 
   });
 
