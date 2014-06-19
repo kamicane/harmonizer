@@ -7,19 +7,21 @@ var { express } = require('./string');
 
 var extend = (SuperClass, Class, prototype, members) => {
   var descriptors = (object) => {
-    var base = {};
-    for (var key in object) base[key] = Object.getOwnPropertyDescriptor(object, key);
+    var base = {}, descriptor;
+    for (var key in object) {
+      descriptor = Object.getOwnPropertyDescriptor(object, key);
+      if (!('get' in descriptor) && !('set' in descriptor)) {
+        descriptor.enumerable = false;
+      }
+      base[key] = descriptor;
+    }
     return base;
   };
 
-  if (SuperClass) {
-    Class.__proto__ = SuperClass;
-    Object.defineProperty(Class, 'prototype', {
-      value: Object.create(SuperClass.prototype, descriptors(prototype))
-    });
-  } else {
-    Class.prototype = prototype;
-  }
+  if (SuperClass) Class.__proto__ = SuperClass;
+  Object.defineProperty(Class, 'prototype', {
+    value: Object.create(SuperClass === null ? null : SuperClass.prototype, descriptors(prototype))
+  });
 
   Object.defineProperty(Class.prototype, 'constructor', { value: Class });
 
