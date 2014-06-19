@@ -90,7 +90,6 @@ var compile = function(input, output) {
       quotes: 'single'
     }
   });
-
   mkdirp.sync(path.dirname(output));
   fs.writeFileSync(output, code);
 
