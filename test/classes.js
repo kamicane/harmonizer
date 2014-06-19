@@ -9,7 +9,7 @@
 
 var expect = require('chai').expect;
 
-describe('harmonizer', () => {
+describe('harmonizer classes', () => {
 
   it('should support anonymous classes', () => {
     var Animal = class {
