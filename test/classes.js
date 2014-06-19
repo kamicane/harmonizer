@@ -4,6 +4,7 @@
 // These tests were pretty much copied and pasted from:
 // https://github.com/square/es6-class/tree/master/test/examples
 // Apache 2 licensed.
+// https://github.com/square/esnext/blob/master/LICENSE
 
 // These tests are compiled first (with harmonizer cli), then run.
 
