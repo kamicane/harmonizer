@@ -364,4 +364,16 @@ describe('harmonizer classes', () => {
 
   });
 
+  it ('should support this expressions in superClasses', () => {
+
+    var Classificator = function() {
+      this.Super = class {};
+      var Sub = class extends this.Super {};
+      expect((new Sub()) instanceof this.Super).to.be.ok;
+    };
+
+    new Classificator();
+
+  });
+
 });
