@@ -82,7 +82,6 @@ function classify(program) {
     var constructorFunction = definitions.search('> #MethodDefinition > key[name=constructor] < * > value')[0];
     constructorFunction.id = new nodes.Identifier({ name: name });
 
-
     definitions.removeChild(constructorFunction.parentNode);
 
     constructorFunction = new nodes.FunctionDeclaration(constructorFunction);
