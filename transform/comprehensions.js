@@ -2,6 +2,7 @@
 
 var { nodes } = require('nodes');
 
+var { getSelfId } = require('../util/self');
 var { express } = require('../util/string');
 var { getUniqueName } = require('../util/id');
 
@@ -70,6 +71,11 @@ function comprehendify(program) {
 
     identifiers.forEach((id) => {
       id.name = comprehensionName;
+    });
+
+    body.search('=> #ThisExpression').forEach(function(node) {
+      var selfId = getSelfId(wrapper.scope());
+      node.parentNode.replaceChild(node, selfId.clone());
     });
 
   });
