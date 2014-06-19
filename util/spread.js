@@ -5,7 +5,7 @@ var { nodes } = require('nodes');
 var { getUniqueName } = require('./id');
 var { express } = require('./string');
 
-var spread = () => {
+var spread = function() {
   var array = [], last = arguments.length - 1;
   for (var i = 0; i < last; i++) array.push(arguments[i]);
   var iterator = arguments[last]['@@iterator'](), step;
