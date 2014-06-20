@@ -74,6 +74,8 @@ function patternify(program) {
   var q;
 
   // transform forOf, forIn declaration pattern
+  // this is covered by forofify,
+  // since it transform for of statements into for statements.
   q = ['#ForOfStatement > left > declarations > * > #ArrayPattern',
       '#ForOfStatement > left > declarations > * > #ObjectPattern',
       '#ForInStatement > left > declarations > * > #ArrayPattern',
@@ -98,7 +100,8 @@ function patternify(program) {
   });
 
   // transform forOf, forIn assignment patterns
-
+  // this is covered by forofify,
+  // since it transform for of statements into for statements.
   q = ['#ForOfStatement > left#ArrayPattern',
       '#ForOfStatement > left#ObjectPattern',
       '#ForInStatement > left#ArrayPattern',
@@ -205,7 +208,6 @@ function patternify(program) {
     var fn = params.parentNode;
 
     var valueId = getUniqueId(fn, lower(pattern.type));
-
     params.replaceChild(pattern, valueId);
 
     if (!pattern.search('properties > * > value#Identifier, elements > #Identifier').length) return;
