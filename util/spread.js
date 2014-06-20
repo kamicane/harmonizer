@@ -5,13 +5,13 @@ var { nodes } = require('nodes');
 var { getUniqueName } = require('./id');
 var { express } = require('./string');
 
-var spread = function() {
+var spread = `function() {
   var array = [], last = arguments.length - 1;
   for (var i = 0; i < last; i++) array.push(arguments[i]);
   var iterator = arguments[last]['@@iterator'](), step;
   while (!(step = iterator.next()).done) array.push(step.value);
   return array;
-};
+}`;
 
 exports.getSpreadId = (node) => {
   if (!node.spreadId) {

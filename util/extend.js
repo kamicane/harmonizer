@@ -5,8 +5,8 @@ var { nodes } = require('nodes');
 var { getUniqueName } = require('./id');
 var { express } = require('./string');
 
-var extend = (SuperClass, Class, prototype, members) => {
-  var descriptors = (object) => {
+var extend = `function (SuperClass, Class, prototype, members) {
+  var descriptors = function(object) {
     var base = {}, descriptor;
     for (var key in object) {
       descriptor = Object.getOwnPropertyDescriptor(object, key);
@@ -27,7 +27,7 @@ var extend = (SuperClass, Class, prototype, members) => {
 
   if (members) Object.defineProperties(Class, descriptors(members));
   return Class;
-};
+}`;
 
 exports.getExtendId = (node) => {
   if (!node.extendId) {
