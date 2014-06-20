@@ -42,7 +42,6 @@ function letify(program) {
 
   // find referenced lets, rename declaration and reference
   program.search(':reference').forEach((ref) => {
-
     var result = lookupReferenceLetDeclarators(ref);
     if (!result) return;
 
