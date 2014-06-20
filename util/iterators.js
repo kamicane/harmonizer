@@ -40,6 +40,8 @@ var objectEntriesNext = (object) => {
   };
 };
 
+exports.iterator = iterator;
+
 exports.values = function values(object) {
   return iterator(object instanceof Array ? arrayValuesNext(object) : objectValuesNext(object));
 };
