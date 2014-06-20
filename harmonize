@@ -17,6 +17,16 @@ var harmonize = require('./');
 
 var argv = minimist(process.argv.slice(2));
 
+if (argv.passthrough == null) argv.passthrough = [];
+if (!Array.isArray(argv.passthrough)) argv.passthrough = [ argv.passthrough ];
+var passthrough = argv.passthrough;
+
+passthrough.push('!*.js');
+
+if (argv.ignore == null) argv.ignore = [];
+if (!Array.isArray(argv.ignore)) argv.ignore = [ argv.ignore ];
+var ignore = argv.ignore;
+
 if (!argv.output || !argv.input) process.exit(1);
 
 var sourceDir = path.resolve(argv.input);
@@ -24,7 +34,7 @@ var outputDir = path.resolve(argv.output);
 
 if (sourceDir === outputDir) process.exit(1);
 
-var ignored = [
+ignore.push(
   'node_modules/**/*',
   '.*.swp',
   '._*',
@@ -36,22 +46,33 @@ var ignored = [
   '.wafpickle-*',
   'CVS',
   'npm-debug.log'
-];
+);
 
-ignored.push(path.relative(sourceDir, outputDir));
+ignore.push(path.relative(sourceDir, outputDir));
 
 var watcher = chokidar.watch(sourceDir, { ignored: function(input) {
   var relative = path.relative(sourceDir, input);
 
-  for (var i = 0; i < ignored.length; i++) {
-    var pattern = ignored[i];
+  for (var i = 0; i < ignore.length; i++) {
+    var pattern = ignore[i];
     if (minimatch(relative, pattern, { matchBase: true, dot: true })) return true;
-
   }
+
 }, persistent: !!argv.watch });
 
 var beep = function() {
   process.stderr.write('\x07'); // beep!
+};
+
+var negates = function(input) {
+  var relative = path.relative(sourceDir, input);
+
+  for (var i = 0; i < passthrough.length; i++) {
+    var pattern = passthrough[i];
+    if (minimatch(relative, pattern, { matchBase: true, dot: true })) return true;
+  }
+
+  return false;
 };
 
 var check = function(input) {
@@ -59,7 +80,7 @@ var check = function(input) {
   var relative = path.relative(sourceDir, input);
   var output = path.join(outputDir, relative);
 
-  if (path.extname(input) !== '.js') {
+  if (negates(input)) {
     passthru(input, output);
   } else {
     try {
