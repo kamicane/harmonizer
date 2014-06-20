@@ -46,12 +46,20 @@ var applyContext = (node, context) => {
     } else {
 
       if (object.type !== syntax.Identifier) {
-        var contextId = getUniqueId(node.scope(), lower(object.type));
-        var declaration = express(`var ${contextId.name} = $`);
-        var declarator = declaration.declarations[0];
-        declarator.init = object;
-        insertBefore(node, declaration);
-        object = callee.object = contextId;
+        var scope = node.scope();
+        var contextId = getUniqueId(scope, lower(object.type));
+        var body = nodes.Function.test(scope) ? scope.body.body : scope.body;
+
+        var declaration = express(`var ${contextId.name}`);
+        body.unshift(declaration);
+
+        callee.object = new nodes.AssignmentExpression({
+          left: contextId.clone(),
+          operator: '=',
+          right: object
+        });
+
+        object = contextId;
       }
 
       args.unshift(object.clone());
