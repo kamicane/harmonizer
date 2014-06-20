@@ -47,10 +47,12 @@ function forofify(program) {
       left.declarations[0].init = xp;
       expression = left;
     } else {
-      expression = new nodes.AssignmentExpression({
-        operator: '=',
-        left: left,
-        right: xp
+      expression = new nodes.ExpressionStatement({
+        expression: new nodes.AssignmentExpression({
+          operator: '=',
+          left: left,
+          right: xp
+        })
       });
     }
 
