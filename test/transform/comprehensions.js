@@ -7,11 +7,7 @@
 
 var { expect } = require('chai');
 
-var iterator = (next) => {
-  var it = { next };
-  it['@@iterator'] = () => it;
-  return it;
-};
+var { iterator } = require('../util/iterators');
 
 Array.prototype['@@iterator'] = function() {
   var i = 0;

@@ -68,31 +68,6 @@ describe('harmonizer classes', () => {
 
   });
 
-  it('should support super method calls', () => {
-    class Animal {
-      sayHi() {
-        return 'I am an animal.';
-      }
-
-      sayOther() {
-        return 'WAT?!';
-      }
-    }
-
-    class Horse extends Animal {
-      sayHi() {
-        return super.sayOther();
-      }
-
-      sayOther() {
-        return 'I see dead objects.';
-      }
-    }
-
-    expect(new Horse().sayHi()).to.equal('WAT?!');
-
-  });
-
   it('should support class expressions', () => {
     var Person = (class Person {});
 
@@ -239,18 +214,6 @@ describe('harmonizer classes', () => {
 
   });
 
-  it('should support method declaration with arguments', () => {
-
-    class Tripler {
-      triple(n) {
-        return n * 3;
-      }
-    }
-
-    expect(new Tripler().triple(2)).to.equal(6);
-
-  });
-
   it('should have writable methods', () => {
 
     var value;
@@ -370,6 +333,31 @@ describe('harmonizer classes', () => {
     };
 
     new Classificator();
+
+  });
+
+  it ('should support super expressions in functions', () => {
+    var expected;
+
+    class Bar {
+      constructor() {
+        expected = true;
+      }
+    }
+
+    class Foo extends Bar {
+      constructor() {
+
+        (function() {
+          super();
+        })();
+
+      }
+    }
+
+    new Foo();
+
+    expect(expected).to.be.ok;
 
   });
 
