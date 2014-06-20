@@ -6,9 +6,7 @@
 // Apache 2 licensed.
 // https://github.com/square/esnext/blob/master/LICENSE
 
-// These tests are compiled first (with harmonizer cli), then run.
-
-var expect = require('chai').expect;
+var { expect } = require('chai');
 
 describe('harmonizer arrow functions', () => {
 

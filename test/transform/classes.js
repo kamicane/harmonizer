@@ -6,16 +6,14 @@
 // Apache 2 licensed.
 // https://github.com/square/esnext/blob/master/LICENSE
 
-// These tests are compiled first (with harmonizer cli), then run.
-
-var expect = require('chai').expect;
+var { expect } = require('chai');
 
 describe('harmonizer classes', () => {
 
   it('should support anonymous classes', () => {
     var Animal = class {
       sayHi() {
-        return 'Hi, I am a '+this.type()+'.';
+        return 'Hi, I am a '+ this.type() + '.';
       }
 
       static getName() {
@@ -43,7 +41,6 @@ describe('harmonizer classes', () => {
     Cat;
 
     expect(count).to.equal(1);
-
   });
 
   it('should support super method calls', () => {
@@ -107,7 +104,7 @@ describe('harmonizer classes', () => {
   it('should support extends', () => {
     class Animal {
       sayHi() {
-        return 'Hi, I am a '+this.type()+'.';
+        return 'Hi, I am a '+ this.type() + '.';
       }
     }
 
@@ -284,8 +281,7 @@ describe('harmonizer classes', () => {
 
       static join(string, ...items) {
         var joiner = new this(string);
-        // TODO: use spread params here
-        return joiner.join.apply(joiner, items);
+        return joiner.join(...items);
       }
     }
 

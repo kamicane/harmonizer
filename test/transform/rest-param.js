@@ -1,9 +1,7 @@
 /* jshint strict:false */
 /* global describe, it */
 
-// These tests are compiled first (with harmonizer cli), then run.
-
-var expect = require('chai').expect;
+var { expect } = require('chai');
 
 describe('harmonizer rest param', () => {
 
