@@ -1,9 +1,8 @@
 'use strict';
 
-var { nodes } = require('nodes');
-
 var { getUniqueName } = require('./id');
 var { express } = require('./string');
+var { insertAfterStrict } = require('./insertion');
 
 var extend = `function (SuperClass, Class, prototype, members) {
   var descriptors = function(object) {
@@ -33,11 +32,8 @@ exports.getExtendId = (node) => {
   if (!node.extendId) {
     var extendName = getUniqueName(node, 'extend');
     var declaration = express(`var ${extendName} = ${extend}`);
-    var id = declaration.declarations[0].id;
-    var body = nodes.Function.test(node) ? node.body.body : node.body;
-    body.unshift(declaration);
-
-    node.extendId = id;
+    insertAfterStrict(node, declaration);
+    node.extendId = declaration.declarations[0].id;
   }
 
   return node.extendId;

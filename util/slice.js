@@ -1,19 +1,15 @@
 'use strict';
 
-var { nodes } = require('nodes');
-
 var { getUniqueName } = require('./id');
 var { express } = require('./string');
+var { insertAfterStrict } = require('./insertion');
 
 exports.getSliceId = (node) => {
   if (!node.sliceId) {
     var sliceName = getUniqueName(node, 'slice');
     var declaration = express(`var ${sliceName} = Array.prototype.slice`);
-    var id = declaration.declarations[0].id;
-    var body = nodes.Function.test(node) ? node.body.body : node.body;
-    body.unshift(declaration);
-
-    node.sliceId = id;
+    insertAfterStrict(node, declaration);
+    node.sliceId = declaration.declarations[0].id;
   }
 
   return node.sliceId;

@@ -1,9 +1,8 @@
 'use strict';
 
-var { nodes } = require('nodes');
-
 var { getUniqueName } = require('./id');
 var { express } = require('./string');
+var { insertAfterStrict } = require('./insertion');
 
 var spread = `function() {
   var array = [], last = arguments.length - 1;
@@ -17,11 +16,8 @@ exports.getSpreadId = (node) => {
   if (!node.spreadId) {
     var spreadName = getUniqueName(node, 'spread');
     var declaration = express(`var ${spreadName} = ${spread}`);
-    var id = declaration.declarations[0].id;
-    var body = nodes.Function.test(node) ? node.body.body : node.body;
-    body.unshift(declaration);
-
-    node.spreadId = id;
+    insertAfterStrict(node, declaration);
+    node.spreadId = declaration.declarations[0].id;
   }
 
   return node.spreadId;

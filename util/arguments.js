@@ -1,19 +1,15 @@
 'use strict';
 
-var { nodes } = require('nodes');
-
 var { getUniqueName } = require('./id');
 var { express } = require('./string');
+var { insertAfterStrict } = require('./insertion');
 
 exports.getArgumentsId = (node) => {
   if (!node.argumentsId) {
     var argumentsName = getUniqueName(node, '_arguments');
     var declaration = express(`var ${argumentsName} = arguments`);
-    var id = declaration.declarations[0].id;
-    var body = nodes.Function.test(node) ? node.body.body : node.body;
-    body.unshift(declaration);
-
-    node.argumentsId = id;
+    insertAfterStrict(node, declaration);
+    node.argumentsId = declaration.declarations[0].id;
   }
 
   return node.argumentsId;
