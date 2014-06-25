@@ -4,7 +4,7 @@ Live demo: http://kamicane.github.io/harmonizer-demo/
 
 A JavaScript es6 to es5 transpiler.
 It is written in es6 syntax, and it gets transpiled by itself.
-This project is to be considered in ALPHA.
+This project is to be considered in BETA.
 
 ## Usage
 
@@ -27,12 +27,18 @@ you can watch source files for changes:
 harmonize --input ./ --output /path/to/project/compiled --watch
 ```
 
+you can also exclude files to be harmonized with glob patterns:
+
+```
+harmonize --input ./ --output /path/to/project/compiled --watch --passthrough "test/**/*"
+```
+
 ## commonJS api
 
 It requires a javascript parser that is able to parse es6 syntax, such as esprima#harmony.
 
 ```js
-var esprima = require('esprima'); // ariya/esprima#harmony
+var esprima = require('esprima'); // kamicane/esprima#harmony
 var escodegen = require('escodegen');
 var harmonize = require('harmonizer');
 
@@ -43,9 +49,36 @@ var harmonized = harmonize(ast);
 var outputCode = escodegen.generate(harmonized);
 ```
 
-It clearly supports `{ loc: true }`, though it is not enabled (yet) in the command line tool, because node.js is unable to interpret source maps.
+Note: esprima#harmony does not support a bunch of es6 features, this is why this project requires my own fork. You can use whatever rocks your boat, but it will not be able to properly compile some stuff.
+
+It clearly supports `{ loc: true }`, though it is not enabled (yet) in the command line tool, because node.js is unable to interpret source maps (yet).
+
+## Runtime
+
+This transpiler does runtime by automatically injecting require calls to specific modules from the [es6-util](https://github.com/kamicane/es6-util) package. The way it works is you depend on the [es6-util](https://github.com/kamicane/es6-util) package in your node package, and harmonizer will require the needed modules for you on demand.
 
 ## Features
+
+### Modules
+
+Module syntax is transpiled to commonJS automatically.
+
+```js
+module foo from './foo'; // whole module
+import foo from './foo'; // default
+import { foo, bar } from './foobar'; // many
+import { foo as fooey, bar as booey } from './foobar'; // many, different names
+import './foo'; // no declaration
+```
+
+```js
+export default foo; // default
+export { foo, bar }; // export many
+export { foo as bar }; // different names
+export var foo = foo; // export declaration
+export function foo(){} // export function declaration
+export class Foo(){} // export class declaration
+```
 
 ### Classes
 
@@ -71,12 +104,17 @@ console.log(new John);
 
 ### Spread
 
+Supports many spread arguments. Mix and match.
+
 ```js
 var array = [4,5,6];
 console.log(1,2,3,...array);
 ```
 
 ### Arrow Functions
+
+Arrow functions have prebound this, and unlike lesser transpilers harmonizer does not use the slow `.bind(this)`.
+Arrow functions cannot access their own arguments variable.
 
 ```js
 var identity = (x) => x;
@@ -107,6 +145,8 @@ var fnRest = function(...rest) {
 
 ### For Of Loops
 
+There is a default array iterator in [es6-util](https://github.com/kamicane/es6-util) that gets used automatically when no Symbol.iterator is found on an array object. No globals are harmed.
+
 ```js
 for (var value of [1,2,3]) console.log(value);
 ```
@@ -126,6 +166,8 @@ console.log(`${Name} ${Last}`);
 
 ### Let Declarations
 
+Again, no hacks here. Variables names and references to those declarations are replaced, it will effectively block you from using those outside of the block scope.
+
 ```js
 for (let x of [1,2,3]) console.log(x);
 console.log(x);
@@ -143,3 +185,7 @@ function destruct([a,b,c]) {
 
 destruct([1,2,3]);
 ```
+
+## Esprima fixes
+
+I made some rather crude esprima fixes to support certain es6 features. I also pulled in some useful commits from the harmony pull requests (that are currently going ignored). https://github.com/kamicane/esprima/commits/harmony
