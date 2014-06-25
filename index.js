@@ -2,8 +2,6 @@
 
 import { build, nodes } from 'nodes';
 
-import { values } from './util/iterators';
-
 import deshorthandify from './transform/shorthands';
 import arrowify from './transform/arrow-functions';
 import comprehendify from './transform/comprehensions';
@@ -20,11 +18,11 @@ import modulize from './transform/modules';
 // add blocks
 function blockify(program) {
 
-  var statementBodies = [ for (selector of values([
+  var statementBodies = [
     '#IfStatement > alternate', '#IfStatement > consequent',
     '#ForStatement > body', '#ForInStatement > body', '#ForOfStatement > body',
     '#WhileStatement > body', '#DoWhileStatement > body'
-  ])) `${selector}[type!=BlockStatement]` ];
+  ].map((selector) => `${selector}[type!=BlockStatement]`);
 
   program.search(statementBodies).forEach((statement) => {
     var parentNode = statement.parentNode;
@@ -48,7 +46,7 @@ export function transform(tree) {
 
   blockify(program); // normalize the program
 
-  modulize(program); // transform let
+  modulize(program); // transform modules
 
   deshorthandify(program); // remove shorthand properties
   arrowify(program); // transform arrow functions
