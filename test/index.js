@@ -12,10 +12,10 @@ var esprima = require('esprima');
 var escodegen = require('escodegen');
 var glob = require('glob');
 
-var harmonize = require('../');
+var harmonize = require('../').default;
 
-glob.sync('./transform/*.js').forEach(function(file) {
-  var source = fs.readFileSync(path.join(__dirname, file)).toString();
+glob.sync('./test/transform/*.js').forEach(function(file) {
+  var source = fs.readFileSync(file).toString();
   var ast = esprima.parse(source);
   var harmonized = harmonize(ast);
   var code = escodegen.generate(harmonized);

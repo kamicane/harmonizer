@@ -1,6 +1,6 @@
 'use strict';
 
-var { nodes } = require('nodes');
+import { nodes } from 'nodes';
 
 var letters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
 
@@ -9,14 +9,14 @@ var letter = (i) => {
   return letter(Math.floor(i / 26) - 1) + letters[i % 26];
 };
 
-exports.getUniqueName = (node, name) => {
+export var getUniqueName = (node, name) => {
   var names = node.search('#Identifier:declaration > name, #Identifier:reference > name');
   var preferred = name, i = 0;
   while (~names.indexOf(name)) name = `${preferred}${letter(i++)}`;
   return name;
 };
 
-exports.getUniqueId = (node, name) => {
-  name = exports.getUniqueName(node, name);
+export var getUniqueId = (node, name) => {
+  name = getUniqueName(node, name);
   return new nodes.Identifier({ name });
 };

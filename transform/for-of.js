@@ -1,12 +1,11 @@
 'use strict';
 
-var { nodes } = require('nodes');
-var syntax = require('nodes/syntax.json');
+import { nodes, syntax } from 'nodes';
 
-var { getUniqueId } = require('../util/id');
-var { express } = require('../util/string');
+import { getUniqueId } from '../util/id';
+import { express } from '../util/string';
 
-function forofify(program) {
+export default function forofify(program) {
 
   program.search('#ForOfStatement').forEach((node) => {
 
@@ -62,5 +61,3 @@ function forofify(program) {
 
   });
 }
-
-exports.transform = forofify;

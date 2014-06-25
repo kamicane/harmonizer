@@ -1,12 +1,12 @@
 'use strict';
 
-var { nodes } = require('nodes');
+import { nodes } from 'nodes';
 
-var { getSelfId } = require('../util/self');
-var { express } = require('../util/string');
-var { getUniqueName } = require('../util/id');
+import { getSelfId } from '../util/self';
+import { express } from '../util/string';
+import { getUniqueName } from '../util/id';
 
-function comprehendify(program) {
+export default function comprehendify(program) {
 
   program.search('#ComprehensionExpression').forEach((node) => {
     var parentNode = node.parentNode;
@@ -81,5 +81,3 @@ function comprehendify(program) {
   });
 
 }
-
-exports.transform = comprehendify;

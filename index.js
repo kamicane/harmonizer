@@ -1,22 +1,21 @@
 'use strict';
 
-var build = require('nodes');
+import { build, nodes } from 'nodes';
 
-var { values } = require('./util/iterators');
+import { values } from './util/iterators';
 
-var { transform: deshorthandify } = require('./transform/shorthands');
-var { transform: arrowify } = require('./transform/arrow-functions');
-var { transform: comprehendify } = require('./transform/comprehensions');
-var { transform: forofify } = require('./transform/for-of');
-var { transform: patternify } = require('./transform/patterns');
-var { transform: defaultify } = require('./transform/default-params');
-var { transform: classify } = require('./transform/classes');
-var { transform: restify } = require('./transform/rest-param');
-var { transform: spreadify } = require('./transform/spread');
-var { transform: templateify } = require('./transform/template-literals');
-var { transform: letify } = require('./transform/let-declarations');
-
-var { nodes } = build;
+import deshorthandify from './transform/shorthands';
+import arrowify from './transform/arrow-functions';
+import comprehendify from './transform/comprehensions';
+import forofify from './transform/for-of';
+import patternify from './transform/patterns';
+import defaultify from './transform/default-params';
+import classify from './transform/classes';
+import restify from './transform/rest-param';
+import spreadify from './transform/spread';
+import templateify from './transform/template-literals';
+import letify from './transform/let-declarations';
+import modulize from './transform/modules';
 
 // add blocks
 function blockify(program) {
@@ -44,10 +43,12 @@ function blockify(program) {
 
 // todo: do not lose loc on replaceChild.
 
-function transform(tree) {
+export function transform(tree) {
   var program = build(tree);
 
   blockify(program); // normalize the program
+
+  modulize(program); // transform let
 
   deshorthandify(program); // remove shorthand properties
   arrowify(program); // transform arrow functions
@@ -72,4 +73,4 @@ function transform(tree) {
   return program.toJSON();
 }
 
-module.exports = transform;
+export default transform;

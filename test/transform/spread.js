@@ -1,9 +1,9 @@
 /* jshint strict:false */
 /* global describe, it */
 
-var { expect } = require('chai');
+import { expect } from 'chai';
 
-var { iterator } = require('../util/iterators');
+import { iterator } from '../util/iterators';
 
 Array.prototype['@@iterator'] = function() {
   var i = 0;

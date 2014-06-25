@@ -1,8 +1,8 @@
 'use strict';
 
-var { getUniqueName } = require('./id');
-var { express } = require('./string');
-var { insertAfterStrict } = require('./insertion');
+import { getUniqueName } from './id';
+import { express } from './string';
+import { insertAfterStrict } from './insertion';
 
 var extend = `function (SuperClass, Class, prototype, members) {
   var descriptors = function(object) {
@@ -28,7 +28,7 @@ var extend = `function (SuperClass, Class, prototype, members) {
   return Class;
 }`;
 
-exports.getExtendId = (node) => {
+export var getExtendId = (node) => {
   if (!node.extendId) {
     var extendName = getUniqueName(node, 'extend');
     var declaration = express(`var ${extendName} = ${extend}`);

@@ -1,12 +1,11 @@
 'use strict';
 
-var { nodes } = require('nodes');
-var syntax = require('nodes/syntax.json');
+import { nodes, syntax } from 'nodes';
 
-var { getSelfId } = require('../util/self');
-var { getArgumentsId } = require('../util/arguments');
+import { getSelfId } from '../util/self';
+import { getArgumentsId } from '../util/arguments';
 
-function arrowify(program) {
+export default function arrowify(program) {
 
   var q = [
     '#ArrowFunctionExpression => #ThisExpression',
@@ -31,5 +30,3 @@ function arrowify(program) {
     node.parentNode.replaceChild(node, shallow);
   });
 }
-
-exports.transform = arrowify;

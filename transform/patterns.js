@@ -1,11 +1,10 @@
 'use strict';
 
-var { nodes } = require('nodes');
-var syntax = require('nodes/syntax.json');
+import { nodes, syntax } from 'nodes';
 
-var { express, lower, upper } = require('../util/string');
-var { insertBefore } = require('../util/insertion');
-var { getUniqueId } = require('../util/id');
+import { express, lower, upper } from '../util/string';
+import { insertBefore } from '../util/insertion';
+import { getUniqueId } from '../util/id';
 
 var createDeclarator = (id, init) => new nodes.VariableDeclarator({ id, init });
 var createAssignment = (left, right) => new nodes.AssignmentExpression({ operator: '=', left, right });
@@ -42,14 +41,18 @@ var destruct = {
 
     var create = assign ? createAssignment : createDeclarator;
 
-    pattern.properties.forEachRight((property) => {
+    var properties = pattern.properties;
+
+    properties.forEachRight((property) => {
 
       var memberString = valueId ? `${valueId.name}.${property.key.name}` : null;
 
       var value = property.value;
 
       if (value.type === syntax.Identifier) {
+
         declarations.unshift(create(value, memberString ? express(memberString).expression : null));
+
       } else if (value.search('properties > * > value#Identifier, elements > #Identifier').length) {
 
         var nestedId;
@@ -69,7 +72,7 @@ var destruct = {
 };
 
 // transform patterns
-function patternify(program) {
+export default function patternify(program) {
 
   var q;
 
@@ -132,13 +135,6 @@ function patternify(program) {
 
     declarations.removeChild(declarator);
 
-    if (!pattern.search('properties > * > value#Identifier, elements > #Identifier').length) { // empty declaration
-      if (!declarations.length) {
-        declaration.parentNode.removeChild(declaration);
-      }
-      return;
-    }
-
     if (declarator.init == null) {
       destruct[pattern.type](pattern, declarations);
     } else {
@@ -147,7 +143,7 @@ function patternify(program) {
         valueId = declarator.init;
       } else {
 
-        valueId = getUniqueId(declarations.scope(), lower(pattern.type));
+        valueId = getUniqueId(declarations.scope(), lower(declarator.init.type));
         var valueDeclaration = express(`var ${valueId.name} = $`);
         valueDeclaration.declarations[0].init = declarator.init;
         insertBefore(declarations, valueDeclaration);
@@ -155,6 +151,10 @@ function patternify(program) {
       }
 
       destruct[pattern.type](pattern, declarations, valueId);
+    }
+
+    if (!declarations.length) {
+      declaration.parentNode.removeChild(declaration);
     }
 
   });
@@ -191,7 +191,7 @@ function patternify(program) {
     if (right.type === syntax.Identifier) {
       valueId = right;
     } else {
-      valueId = getUniqueId(sequence.scope(), lower(pattern.type));
+      valueId = getUniqueId(sequence.scope(), lower(right.type));
       var declaration = express(`var ${valueId.name} = $`);
       declaration.declarations[0].init = right;
       insertBefore(sequence, declaration);
@@ -207,7 +207,7 @@ function patternify(program) {
     var params = pattern.parentNode;
     var fn = params.parentNode;
 
-    var valueId = getUniqueId(fn, lower(pattern.type));
+    var valueId = getUniqueId(fn, 'argument');
     params.replaceChild(pattern, valueId);
 
     if (!pattern.search('properties > * > value#Identifier, elements > #Identifier').length) return;
@@ -219,5 +219,3 @@ function patternify(program) {
   });
 
 }
-
-exports.transform = patternify;

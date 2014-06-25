@@ -1,9 +1,9 @@
 'use strict';
 
-var { nodes } = require('nodes');
+import { nodes } from 'nodes';
 
 // todo: tagged template expressions
-function templateify(program) {
+export default function templateify(program) {
 
   program.search('#TemplateLiteral').forEach((node) => {
 
@@ -59,5 +59,3 @@ function templateify(program) {
   });
 
 }
-
-exports.transform = templateify;

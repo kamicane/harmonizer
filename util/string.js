@@ -1,8 +1,8 @@
 'use strict';
 
-var build = require('nodes');
-var esprima = require('esprima');
+import { build } from 'nodes';
+import { parse } from 'esprima';
 
-exports.express = (string) => build(esprima.parse(string).body[0]);
-exports.upper = (string) => string.replace(/^[a-z]/, (a) => a.toUpperCase());
-exports.lower = (string) => string.replace(/^[A-Z]/, (a) => a.toLowerCase());
+export var express = (string) => build(parse(string).body[0]);
+export var upper = (string) => string.replace(/^[a-z]/, (a) => a.toUpperCase());
+export var lower = (string) => string.replace(/^[A-Z]/, (a) => a.toLowerCase());

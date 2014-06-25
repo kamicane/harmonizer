@@ -1,8 +1,8 @@
 'use strict';
 
-var { getUniqueName } = require('./id');
-var { express } = require('./string');
-var { insertAfterStrict } = require('./insertion');
+import { getUniqueName } from './id';
+import { express } from './string';
+import { insertAfterStrict } from './insertion';
 
 var spread = `function() {
   var array = [], last = arguments.length - 1;
@@ -12,7 +12,7 @@ var spread = `function() {
   return array;
 }`;
 
-exports.getSpreadId = (node) => {
+export var getSpreadId = (node) => {
   if (!node.spreadId) {
     var spreadName = getUniqueName(node, 'spread');
     var declaration = express(`var ${spreadName} = ${spread}`);

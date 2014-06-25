@@ -1,6 +1,8 @@
 'use strict';
 
-var { nodes, lists: { List } } = require('nodes');
+import { nodes, lists } from 'nodes';
+
+var List = lists.List;
 
 var listIndex = (node) => {
   var lastNode = node, firstList;
@@ -19,19 +21,19 @@ var listIndex = (node) => {
 
 // insertBefore
 
-exports.insertBefore = (node, node2) => {
+export var insertBefore = (node, node2) => {
   var li = listIndex(node);
   li.list.splice(li.index, 0, node2);
   return node2;
 };
 
-exports.insertAfter = (node, node2) => {
+export var insertAfter = (node, node2) => {
   var li = listIndex(node);
   li.list.splice(li.index + 1, 0, node2);
   return node2;
 };
 
-exports.insertAfterStrict = function(parentNode, node) {
+export var insertAfterStrict = function(parentNode, node) {
   var body = nodes.Function.test(parentNode) ? parentNode.body.body : parentNode.body;
   var firstChild = body[0];
   if (firstChild && firstChild.matches('#ExpressionStatement > expression#Literal[value=use strict] < *')) {

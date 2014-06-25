@@ -1,10 +1,10 @@
 'use strict';
 
-var { getUniqueName } = require('./id');
-var { express } = require('./string');
-var { insertAfterStrict } = require('./insertion');
+import { getUniqueName } from './id';
+import { express } from './string';
+import { insertAfterStrict } from './insertion';
 
-exports.getArgumentsId = (node) => {
+export var getArgumentsId = (node) => {
   if (!node.argumentsId) {
     var argumentsName = getUniqueName(node, '_arguments');
     var declaration = express(`var ${argumentsName} = arguments`);

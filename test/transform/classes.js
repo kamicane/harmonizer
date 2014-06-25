@@ -6,7 +6,7 @@
 // Apache 2 licensed.
 // https://github.com/square/esnext/blob/master/LICENSE
 
-var { expect } = require('chai');
+import { expect } from 'chai';
 
 describe('harmonizer classes', () => {
 

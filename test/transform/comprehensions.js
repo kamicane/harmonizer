@@ -5,9 +5,9 @@
 // https://raw.githubusercontent.com/dreame4/es6-comprehensions/master/test/parser_test.js
 // BSD-2-Clause licensed.
 
-var { expect } = require('chai');
+import { expect } from 'chai';
 
-var { iterator } = require('../util/iterators');
+import { iterator } from '../util/iterators';
 
 Array.prototype['@@iterator'] = function() {
   var i = 0;

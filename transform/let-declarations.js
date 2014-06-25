@@ -1,8 +1,8 @@
 'use strict';
 
-var syntax = require('nodes/syntax.json');
+import { syntax } from 'nodes';
 
-var { getUniqueName } = require('../util/id');
+import { getUniqueName } from '../util/id';
 
 var isFor = (node) => {
   var type;
@@ -32,7 +32,7 @@ var lookupReferenceLetDeclarators = (node) => {
   }
 };
 
-function letify(program) {
+export default function letify(program) {
 
   var lets = program.search('#VariableDeclaration[kind=let]');
 
@@ -77,5 +77,3 @@ function letify(program) {
     }
   });
 }
-
-exports.transform = letify;

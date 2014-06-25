@@ -1,10 +1,10 @@
 'use strict';
 
-var { getUniqueName } = require('./id');
-var { express } = require('./string');
-var { insertAfterStrict } = require('./insertion');
+import { getUniqueName } from './id';
+import { express } from './string';
+import { insertAfterStrict } from './insertion';
 
-exports.getSliceId = (node) => {
+export var getSliceId = (node) => {
   if (!node.sliceId) {
     var sliceName = getUniqueName(node, 'slice');
     var declaration = express(`var ${sliceName} = Array.prototype.slice`);

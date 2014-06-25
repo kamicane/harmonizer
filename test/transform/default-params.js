@@ -1,7 +1,7 @@
 /* jshint strict:false */
 /* global describe, it */
 
-var { expect } = require('chai');
+import { expect } from 'chai';
 
 describe('harmonizer default params', () => {
 

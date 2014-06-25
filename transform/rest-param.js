@@ -1,10 +1,10 @@
 'use strict';
 
-var { getSliceId } = require('../util/slice');
-var { express } = require('../util/string');
+import { getSliceId } from '../util/slice';
+import { express } from '../util/string';
 
 // transform rest param
-function restify(program) {
+export default function restify(program) {
 
   program.search('#Function[rest!=null]').forEach((node) => {
     var block = node.body.body;
@@ -21,5 +21,3 @@ function restify(program) {
   });
 
 }
-
-exports.transform = restify;

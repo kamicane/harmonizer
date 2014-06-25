@@ -1,9 +1,9 @@
 /* jshint strict:false */
 /* global describe, it */
 
-var { expect } = require('chai');
+import { expect } from 'chai';
 
-var { keys, values, entries } = require('../util/iterators');
+import { keys, values, entries } from '../util/iterators';
 
 describe('harmonizer let declarations', () => {
 

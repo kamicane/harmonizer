@@ -11,7 +11,7 @@ var minimist = require('minimist');
 var esprima = require('esprima');
 var escodegen = require('escodegen');
 
-var harmonize = require('./');
+var harmonize = require('./').default;
 
 // #
 

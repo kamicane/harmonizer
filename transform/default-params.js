@@ -1,8 +1,8 @@
 'use strict';
 
-var { express } = require('../util/string');
+import { express } from '../util/string';
 
-function defaultify(program) {
+export default function defaultify(program) {
 
   program.search('#Function').forEach((fn) => {
     if (fn.defaults.length === 0) return;
@@ -21,5 +21,3 @@ function defaultify(program) {
 
   });
 }
-
-exports.transform = defaultify;

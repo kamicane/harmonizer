@@ -1,6 +1,6 @@
 'use strict';
 
-var iterator = (next) => {
+export var iterator = (next) => {
   var it = { next };
   it['@@iterator'] = () => it;
   return it;
@@ -40,16 +40,14 @@ var objectEntriesNext = (object) => {
   };
 };
 
-exports.iterator = iterator;
-
-exports.values = function values(object) {
+export var values = function values(object) {
   return iterator(object instanceof Array ? arrayValuesNext(object) : objectValuesNext(object));
 };
 
-exports.keys = function keys(object) {
+export var keys = function keys(object) {
   return iterator(object instanceof Array ? arrayKeysNext(object) : objectKeysNext(object));
 };
 
-exports.entries = function entries(object) {
+export var entries = function entries(object) {
   return iterator(object instanceof Array ? arrayEntriesNext(object) : objectEntriesNext(object));
 };

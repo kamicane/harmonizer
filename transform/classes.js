@@ -1,18 +1,17 @@
 'use strict';
 
-var { nodes } = require('nodes');
-var syntax = require('nodes/syntax.json');
+import { nodes, syntax } from 'nodes';
 
-var { applyContext } = require('./spread');
+import { applyContext } from './spread';
 
-var { insertAfter } = require('../util/insertion');
-var { express, upper } = require('../util/string');
-var { getUniqueId } = require('../util/id');
-var { getExtendId } = require('../util/extend');
-var { getSelfId } = require('../util/self');
+import { insertAfter } from '../util/insertion';
+import { express, upper } from '../util/string';
+import { getUniqueId } from '../util/id';
+import { getExtendId } from '../util/extend';
+import { getSelfId } from '../util/self';
 
 // todo: super accessors.
-function classify(program) {
+export default function classify(program) {
 
   program.search('#Class').forEach((node) => {
     var definitions = node.body.body;
@@ -132,5 +131,3 @@ function classify(program) {
   });
 
 }
-
-exports.transform = classify;

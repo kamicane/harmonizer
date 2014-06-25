@@ -1,15 +1,13 @@
 'use strict';
 
-var { nodes } = require('nodes');
-var syntax = require('nodes/syntax.json');
+import { nodes, syntax } from 'nodes';
 
-var { getSpreadId } = require('../util/spread');
-var { express, lower } = require('../util/string');
-var { getUniqueId } = require('../util/id');
-var { values } = require('../util/iterators');
-var { insertBefore } = require('../util/insertion');
+import { getSpreadId } from '../util/spread';
+import { express, lower } from '../util/string';
+import { getUniqueId } from '../util/id';
+import { values } from '../util/iterators';
 
-var applyContext = (node, context) => {
+export var applyContext = (node, context) => {
   var args = node.arguments;
   var spread = args[args.length - 1];
 
@@ -76,7 +74,7 @@ var applyContext = (node, context) => {
 
 // esprima bug: the spread element is only accepted as the last argument / element
 // I chose not to implement spread the "right" way until esprima gets fixed, since there is no js parser for it.
-function spreadify(program) {
+export default function spreadify(program) {
 
   program.search('#SpreadElement < arguments < #CallExpression').forEach((node) => {
     applyContext(node);
@@ -100,6 +98,3 @@ function spreadify(program) {
   });
 
 }
-
-exports.transform = spreadify;
-exports.applyContext = applyContext;
