@@ -2,32 +2,53 @@
 
 import { nodes, syntax } from 'nodes';
 
-import { getSpreadId } from '../util/spread';
 import { express, lower } from '../util/string';
-import { getUniqueId } from '../util/id';
-import { values } from '../util/iterators';
+import { getUniqueId, createUniqueDeclaration } from '../util/id';
+
+var spreadList = function(node, list) {
+  var spreadId = createUniqueDeclaration(
+    node.root, 'spread', 'require("es6-util/iterator/spread").default'
+  );
+
+  list.forEachRight((arg, i) => {
+    var isSpread = arg.type === syntax.SpreadElement;
+    if (isSpread) {
+      var spreadCall = express(`${spreadId.name}()`).expression;
+      spreadCall.arguments.push(arg.argument);
+      list.splice(i, 1, spreadCall);
+    } else {
+      var newArg = (i === 0 || arg.type !== syntax.Literal) ?
+        new nodes.ArrayExpression({ elements: [ arg ] }) :
+        arg;
+
+      list.splice(i, 0, newArg);
+    }
+  });
+
+  if (list.length > 1) {
+    var concatExpression = express(`$.concat()`).expression;
+    concatExpression.callee.object = list.shift();
+
+    list.forEachRight(function(arg) {
+      concatExpression.arguments.unshift(arg);
+    });
+
+    list.splice(0, list.length, concatExpression);
+  }
+};
 
 export var applyContext = (node, context) => {
   var args = node.arguments;
-  var spread = args[args.length - 1];
 
-  var isSpread = spread && spread.type === syntax.SpreadElement;
+  var hasSpreads = !!args.search('> #SpreadElement').length;
 
-  if (!context && !isSpread) return;
+  // nothing to do
+  if (!hasSpreads && !context) return;
 
   var propertyName;
 
-  if (isSpread) {
-    args.replaceChild(spread, spread.argument);
-
-    var spreadId = getSpreadId(node.root).clone();
-
-    var spreadCall = express(`${spreadId.name}()`).expression;
-
-    spreadCall.arguments.push(...values(args));
-
-    args.push(spreadCall);
-
+  if (hasSpreads) {
+    spreadList(node, args);
     propertyName = 'apply';
   } else {
     propertyName = 'call';
@@ -37,6 +58,7 @@ export var applyContext = (node, context) => {
   var object = callee.object;
 
   if (!context) {
+
     if (callee.type !== syntax.MemberExpression) {
 
       args.unshift(new nodes.Literal({ value: null }));
@@ -72,8 +94,6 @@ export var applyContext = (node, context) => {
   });
 };
 
-// esprima bug: the spread element is only accepted as the last argument / element
-// I chose not to implement spread the "right" way until esprima gets fixed, since there is no js parser for it.
 export default function spreadify(program) {
 
   program.search('#SpreadElement < arguments < #CallExpression').forEach((node) => {
@@ -81,19 +101,9 @@ export default function spreadify(program) {
   });
 
   program.search('#SpreadElement < elements < #ArrayExpression').forEach((node) => {
-
     var elements = node.elements;
-    var spread = elements[elements.length - 1];
-
-    elements.replaceChild(spread, spread.argument);
-
-    var spreadId = getSpreadId(program).clone();
-
-    var spreadCall = express(`${spreadId.name}()`).expression;
-
-    spreadCall.arguments.push(...values(elements));
-
-    node.parentNode.replaceChild(node, spreadCall);
+    spreadList(node, elements);
+    node.parentNode.replaceChild(node, node.elements[0]);
 
   });
 

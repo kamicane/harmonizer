@@ -2,7 +2,7 @@
 
 import { nodes, syntax } from 'nodes';
 
-import { getUniqueId } from '../util/id';
+import { getUniqueId, createUniqueDeclaration } from '../util/id';
 import { express } from '../util/string';
 
 export default function forofify(program) {
@@ -18,13 +18,12 @@ export default function forofify(program) {
 
     forStatement.body = node.body;
 
-    var init = new nodes.CallExpression({
-      callee: new nodes.MemberExpression({
-        computed: true,
-        object: node.right,
-        property: new nodes.Literal({ value: '@@iterator' })
-      })
-    });
+    var iteratorOfId = createUniqueDeclaration(
+      program, 'iteratorOf', 'require("es6-util/iterator/get").default'
+    );
+
+    var init = express(`${iteratorOfId.name}()`).expression;
+    init.arguments.push(node.right);
 
     forStatement.init = new nodes.VariableDeclaration({
       declarations: [

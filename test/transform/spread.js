@@ -3,15 +3,6 @@
 
 import { expect } from 'chai';
 
-import { iterator } from '../util/iterators';
-
-Array.prototype['@@iterator'] = function() {
-  var i = 0;
-  return iterator(() => {
-    return (i === this.length) ? { value: void 0, done: true } : { value: this[i++], done: false };
-  });
-};
-
 describe('harmonizer spread argument', () => {
 
   var fn = function() {
@@ -43,6 +34,12 @@ describe('harmonizer spread argument', () => {
     expect(result2).to.eql([0,1,2,3]);
   });
 
+  it('should spread arguments, with mixedly positioned arguments', () => {
+    var sixSeven = [6, 7];
+    var result = fn(0, ...[1,2,3], 4, 5, sixSeven, [8, 9], ...[10, 11]);
+    expect(result).to.eql([0,1,2,3,4,5,[6,7],[8,9],10,11]);
+  });
+
   it('should spread arrays, with one element', () => {
     var ary = [...[1,2,3]];
     expect(ary).to.eql([1,2,3]);
@@ -51,6 +48,12 @@ describe('harmonizer spread argument', () => {
   it('should spread arrays, with many elements', () => {
     var ary = [0, ...[1,2,3]];
     expect(ary).to.eql([0,1,2,3]);
+  });
+
+  it('should spread arrays, with mixedly positioned arguments', () => {
+    var sixSeven = [6, 7];
+    var result = [0, ...[1,2,3], 4, 5, ...sixSeven, [8, 9]];
+    expect(result).to.eql([0,1,2,3,4,5,6,7,[8,9]]);
   });
 
 });

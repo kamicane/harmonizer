@@ -2,8 +2,7 @@
 
 import { nodes, syntax } from 'nodes';
 
-import { getSelfId } from '../util/self';
-import { getArgumentsId } from '../util/arguments';
+import { createUniqueDeclaration } from '../util/id';
 
 export default function arrowify(program) {
 
@@ -18,11 +17,11 @@ export default function arrowify(program) {
 
     var id;
     if (expression.type === syntax.ThisExpression) {
-      id = getSelfId(arrowScope);
+      id = createUniqueDeclaration(arrowScope, 'self', 'this');
     } else {
-      id = getArgumentsId(arrowScope);
+      id = createUniqueDeclaration(arrowScope, 'parameters', 'arguments');
     }
-    expression.parentNode.replaceChild(expression, id.clone());
+    expression.parentNode.replaceChild(expression, id);
   });
 
   program.search('#ArrowFunctionExpression').forEach((node) => {

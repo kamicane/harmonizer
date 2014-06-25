@@ -1,6 +1,6 @@
 'use strict';
 
-import { getSliceId } from '../util/slice';
+import { createUniqueDeclaration } from '../util/id';
 import { express } from '../util/string';
 
 // transform rest param
@@ -10,7 +10,7 @@ export default function restify(program) {
     var block = node.body.body;
     var length = node.params.length;
 
-    var sliceId = getSliceId(program).clone();
+    var sliceId = createUniqueDeclaration(program, 'slice', 'Array.prototype.slice');
 
     var declaration = express(`var ${node.rest.name} = ${sliceId.name}.call(arguments, ${length})`);
 

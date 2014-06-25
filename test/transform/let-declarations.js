@@ -3,8 +3,6 @@
 
 import { expect } from 'chai';
 
-import { keys, values, entries } from '../util/iterators';
-
 describe('harmonizer let declarations', () => {
 
   it('should not leak', () => {
@@ -39,7 +37,7 @@ describe('harmonizer let declarations', () => {
   it('should not leak in for of statements', () => {
 
     var c = 0;
-    for (let x of values([1,2,3])) {
+    for (let x of [1,2,3]) {
       c++;
     }
     expect(c).to.equal(3);

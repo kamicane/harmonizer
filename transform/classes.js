@@ -6,9 +6,7 @@ import { applyContext } from './spread';
 
 import { insertAfter } from '../util/insertion';
 import { express, upper } from '../util/string';
-import { getUniqueId } from '../util/id';
-import { getExtendId } from '../util/extend';
-import { getSelfId } from '../util/self';
+import { getUniqueId, createUniqueDeclaration } from '../util/id';
 
 // todo: super accessors.
 export default function classify(program) {
@@ -27,7 +25,10 @@ export default function classify(program) {
     var getPrototypeOfNamePrototype = `Object.getPrototypeOf(${name}.prototype)`;
     var getPrototypeOfName = `Object.getPrototypeOf(${name})`;
 
-    var extendId = getExtendId(program).clone();
+    var createClassId = createUniqueDeclaration(
+      program, 'createClass', 'require("es6-util/class/create").default'
+    );
+
     var superClass = node.superClass;
 
     var constructorMethod = !!definitions.search('> #MethodDefinition > key[name=constructor]').length;
@@ -71,7 +72,7 @@ export default function classify(program) {
       var definitionFunction = definition.value;
 
       selfId = (id.scope() !== definitionFunction) ?
-        getSelfId(definitionFunction).clone() :
+        createUniqueDeclaration(definitionFunction, 'self', 'this') :
         new nodes.ThisExpression;
 
       callExpression.callee = superMethodXp;
@@ -98,8 +99,8 @@ export default function classify(program) {
       }));
     });
 
-    var extendExpression = express(`${extendId.name}()`);
-    var args = extendExpression.expression.arguments;
+    var createClassExpression = express(`${createClassId.name}()`);
+    var args = createClassExpression.expression.arguments;
 
     if (node.type === syntax.ClassExpression) {
 
@@ -108,7 +109,7 @@ export default function classify(program) {
       wrapper.arguments.push(superClass);
       var body = wrapper.callee.body.body;
       var returnStatement = new nodes.ReturnStatement({
-        argument: extendExpression.expression
+        argument: createClassExpression.expression
       });
 
       body.push(constructorFunction);
@@ -122,7 +123,7 @@ export default function classify(program) {
 
     } else {
       node.parentNode.replaceChild(node, constructorFunction);
-      insertAfter(constructorFunction, extendExpression);
+      insertAfter(constructorFunction, createClassExpression);
     }
 
     args.push(superClass, constructorFunction.id.clone(), prototype);

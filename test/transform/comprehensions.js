@@ -7,14 +7,7 @@
 
 import { expect } from 'chai';
 
-import { iterator } from '../util/iterators';
-
-Array.prototype['@@iterator'] = function() {
-  var i = 0;
-  return iterator(() => {
-    return (i === this.length) ? { value: void 0, done: true } : { value: this[i++], done: false };
-  });
-};
+import createIterator from 'es6-util/iterator/create';
 
 describe('harmonizer comprehensions', () => {
 
@@ -68,7 +61,7 @@ describe('harmonizer comprehensions', () => {
 
   it('should use (badly implemented) iterators', () => {
     var index = 1;
-    var iter = iterator(() => {
+    var iter = createIterator(() => {
       if (index > 3) {
         return {value: void 0, done: true};
       } else {

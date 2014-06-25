@@ -2,7 +2,7 @@
 
 import { nodes } from 'nodes';
 
-import { getSelfId } from '../util/self';
+import { createUniqueDeclaration } from '../util/id';
 import { express } from '../util/string';
 import { getUniqueName } from '../util/id';
 
@@ -74,8 +74,13 @@ export default function comprehendify(program) {
     });
 
     body.search('=> #ThisExpression').forEach(function(node) {
-      var selfId = getSelfId(wrapper.scope());
-      node.parentNode.replaceChild(node, selfId.clone());
+      var selfId = createUniqueDeclaration(wrapper.scope(), 'self', 'this');
+      node.parentNode.replaceChild(node, selfId);
+    });
+
+    body.search('=> #Identifier:reference[name=arguments]').forEach(function(node) {
+      var argumentsId = createUniqueDeclaration(wrapper.scope(), 'parameters', 'arguments');
+      node.parentNode.replaceChild(node, argumentsId);
     });
 
   });

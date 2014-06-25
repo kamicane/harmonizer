@@ -3,7 +3,7 @@
 
 import { expect } from 'chai';
 
-import { keys, values, entries } from '../util/iterators';
+import { keys, values, entries } from 'es6-util/iterator';
 
 describe('harmonizer for of statements', () => {
 

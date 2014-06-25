@@ -7,7 +7,7 @@ var List = lists.List;
 var listIndex = (node) => {
   var lastNode = node, firstList;
   while (node = node.parentNode) {
-    if (node instanceof List) {
+    if (node instanceof List && node.parentNode.body === node) {
       firstList = node;
       break;
     } else {
