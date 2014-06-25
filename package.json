@@ -1,6 +1,6 @@
 {
   "name": "harmonizer",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "es6 to es5 transpiler",
   "main": "./index.js",
   "dependencies": {
