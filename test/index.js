@@ -7,7 +7,6 @@
 // this gives us test coverage.
 
 var fs = require('fs');
-var path = require('path');
 var esprima = require('esprima');
 var escodegen = require('escodegen');
 var glob = require('glob');

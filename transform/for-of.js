@@ -16,6 +16,10 @@ export default function forofify(program) {
     var iteratorId = getUniqueId(node.scope(), 'iterator');
     var stepId = getUniqueId(node.scope(), 'step');
 
+    if (node.body.type !== syntax.BlockStatement) {
+      node.body = new nodes.BlockStatement({ body: [ node.body ] });
+    }
+
     forStatement.body = node.body;
 
     var iteratorOfId = createUniqueDeclaration(

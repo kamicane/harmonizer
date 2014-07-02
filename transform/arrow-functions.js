@@ -6,25 +6,32 @@ import { createUniqueDeclaration } from '../util/id';
 
 export default function arrowify(program) {
 
-  var q = [
-    '#ArrowFunctionExpression => #ThisExpression',
-    '#ArrowFunctionExpression => #Identifier:reference[name=arguments]'
-  ];
+  var arrowFunctions = program.search('#ArrowFunctionExpression');
 
-  program.search(q).forEach((expression) => {
-    var arrowFunction = expression.scope();
-    var arrowScope = arrowFunction.scope('[type!=ArrowFunctionExpression]');
+  arrowFunctions.forEach((node) => {
 
-    var id;
-    if (expression.type === syntax.ThisExpression) {
-      id = createUniqueDeclaration(arrowScope, 'self', 'this');
-    } else {
-      id = createUniqueDeclaration(arrowScope, 'parameters', 'arguments');
+    if (node.expression) {
+      node.expression = false;
+      node.body = new nodes.BlockStatement({
+        body: [ new nodes.ReturnStatement({ argument: node.body }) ]
+      });
     }
-    expression.parentNode.replaceChild(expression, id);
+
+    var arrowScope = node.scope('[type!=ArrowFunctionExpression]');
+
+    node.search('=> #ThisExpression, => #Identifier:reference[name=arguments]').forEach((expression) => {
+      var id;
+      if (expression.type === syntax.ThisExpression) {
+        id = createUniqueDeclaration(arrowScope, 'self', 'this');
+      } else {
+        id = createUniqueDeclaration(arrowScope, 'parameters', 'arguments');
+      }
+      expression.parentNode.replaceChild(expression, id);
+    });
+
   });
 
-  program.search('#ArrowFunctionExpression').forEach((node) => {
+  arrowFunctions.forEach(function(node) {
     var shallow = new nodes.FunctionExpression(node);
     node.parentNode.replaceChild(node, shallow);
   });

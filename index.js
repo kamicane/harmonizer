@@ -15,36 +15,10 @@ import templateify from './transform/template-literals';
 import letify from './transform/let-declarations';
 import modulize from './transform/modules';
 
-// add blocks
-function blockify(program) {
-
-  var statementBodies = [
-    '#IfStatement > alternate', '#IfStatement > consequent',
-    '#ForStatement > body', '#ForInStatement > body', '#ForOfStatement > body',
-    '#WhileStatement > body', '#DoWhileStatement > body'
-  ].map((selector) => `${selector}[type!=BlockStatement]`);
-
-  program.search(statementBodies).forEach((statement) => {
-    var parentNode = statement.parentNode;
-    var key = parentNode.indexOf(statement);
-    parentNode[key] = new nodes.BlockStatement({ body: [ statement ] });
-  });
-
-  program.search('#ArrowFunctionExpression[expression=true]').forEach((node) => {
-    node.expression = false;
-    node.body = new nodes.BlockStatement({
-      body: [ new nodes.ReturnStatement({ argument: node.body }) ]
-    });
-  });
-
-}
-
 // todo: do not lose loc on replaceChild.
 
 export function transform(tree) {
   var program = build(tree);
-
-  blockify(program); // normalize the program
 
   modulize(program); // transform modules
 
