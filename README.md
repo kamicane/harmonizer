@@ -173,7 +173,7 @@ for (let x of [1,2,3]) console.log(x);
 console.log(x);
 ```
 
-### Destructuring assignment
+### Destructuring Assignment
 
 ```js
 var [a,[b], {c}] = [1,[2],{c: 3}];
@@ -184,6 +184,21 @@ function destruct([a,b,c]) {
 }
 
 destruct([1,2,3]);
+```
+
+### Computed Property Keys & Method Definitions
+
+```js
+var obj = {
+  [(true).toString()]: true,
+  [(false).toString()]: false
+};
+
+var Cls = class {
+  [dynamicMethodName()]() {
+    console.log('woHoo');
+  }
+};
 ```
 
 ## Esprima fixes
