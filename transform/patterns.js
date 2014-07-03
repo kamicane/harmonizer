@@ -144,7 +144,7 @@ export default function patternify(program) {
       } else {
 
         valueId = getUniqueId(declarations.scope(), lower(declarator.init.type));
-        var valueDeclaration = express(`var ${valueId.name} = $`);
+        var valueDeclaration = express(`var ${valueId.name}`);
         valueDeclaration.declarations[0].init = declarator.init;
         insertBefore(declarations, valueDeclaration);
 
@@ -192,7 +192,7 @@ export default function patternify(program) {
       valueId = right;
     } else {
       valueId = getUniqueId(sequence.scope(), lower(right.type));
-      var declaration = express(`var ${valueId.name} = $`);
+      var declaration = express(`var ${valueId.name}`);
       declaration.declarations[0].init = right;
       insertBefore(sequence, declaration);
     }
