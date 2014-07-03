@@ -14,6 +14,7 @@ import spreadify from './transform/spread';
 import templateify from './transform/template-literals';
 import letify from './transform/let-declarations';
 import modulize from './transform/modules';
+import computify from './transform/computed-properties';
 
 // todo: do not lose loc on replaceChild.
 
@@ -33,6 +34,8 @@ export function transform(tree) {
   defaultify(program); // transform default parameters
 
   classify(program); // transform classes
+
+  computify(program); // transform computed properties
 
   restify(program); // transform rest parameter
 
