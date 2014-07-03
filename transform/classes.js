@@ -11,6 +11,10 @@ import { getUniqueId, createUniqueDeclaration } from '../util/id';
 // todo: super accessors.
 export default function classify(program) {
 
+  var getGPOName = function() {
+    return createUniqueDeclaration(program, 'getPrototypeOf', 'Object.getPrototypeOf').name;
+  };
+
   program.search('#Class').forEach((node) => {
     var definitions = node.body.body;
 
@@ -21,9 +25,6 @@ export default function classify(program) {
     if (!node.id) node.id = getUniqueId(node, 'Class');
 
     var name = node.id.name;
-
-    var getPrototypeOfNamePrototype = `Object.getPrototypeOf(${name}.prototype)`;
-    var getPrototypeOfName = `Object.getPrototypeOf(${name})`;
 
     var createClassId = createUniqueDeclaration(
       program, 'createClass', 'require("es6-util/class/create").default'
@@ -36,7 +37,7 @@ export default function classify(program) {
     if (!constructorMethod) definitions.unshift(new nodes.MethodDefinition({
       key: new nodes.Identifier({ name: 'constructor' }),
       value: express(`(function () {
-        var proto = ${getPrototypeOfNamePrototype};
+        var proto = ${getGPOName()}(${name}.prototype);
         if (proto !== null) proto.constructor.apply(this, arguments);
       })`).expression
     }));
@@ -64,8 +65,8 @@ export default function classify(program) {
       }
 
       var superMethodXp = definition.static ?
-        express(`${getPrototypeOfName}.${methodName}`).expression :
-        express(`${getPrototypeOfNamePrototype}.${methodName}`).expression;
+        express(`${getGPOName()}(${name}).${methodName}`).expression :
+        express(`${getGPOName()}(${name}.prototype).${methodName}`).expression;
 
       var selfId;
 
@@ -95,7 +96,8 @@ export default function classify(program) {
       (definition.static ? members : prototype).properties.push(new nodes.Property({
         key: definition.key,
         value: definition.value,
-        kind: definition.kind || 'init'
+        kind: definition.kind || 'init',
+        computed: definition.computed
       }));
     });
 
