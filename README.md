@@ -49,8 +49,6 @@ var harmonized = harmonize(ast);
 var outputCode = escodegen.generate(harmonized);
 ```
 
-Note: esprima#harmony does not support a bunch of es6 features, this is why this project requires my own fork. You can use whatever rocks your boat, but it will not be able to properly compile some stuff.
-
 It clearly supports `{ loc: true }`, though it is not enabled (yet) in the command line tool, because node.js is unable to interpret source maps (yet).
 
 ## Runtime
@@ -203,4 +201,13 @@ var Cls = class {
 
 ## Esprima fixes
 
-I made some rather crude esprima fixes to support certain es6 features. I also pulled in some useful commits from the harmony pull requests (that are currently going ignored). https://github.com/kamicane/esprima/commits/harmony
+I made some rather [crude esprima fixes](https://github.com/kamicane/esprima/tree/harmony) to support certain es6 features. I also pulled in some useful commits from the harmony pull requests.
+
+While harmonizer does not necessarily require an ast generated with my branch of esprima, it will not be able to compile the following features with [ariya/esprima#harmony](https://github.com/ariya/esprima/tree/harmony):
+
+ * arrow functions with a single pattern or default as parameter
+ * patterns as assignments in for in and for of statements
+ * multiple spread arguments
+ * computed method definitions
+
+Refer to the [specific commits](https://github.com/kamicane/esprima/commits/harmony) for a full list of fixes.
