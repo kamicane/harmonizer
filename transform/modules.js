@@ -4,6 +4,7 @@ import { nodes, syntax } from 'nodes';
 
 import { express } from '../util/string';
 import { insertBefore } from '../util/insertion';
+import patternify from './patterns';
 
 export default function modulize(program) {
 
@@ -100,6 +101,8 @@ export default function modulize(program) {
       });
 
       node.parentNode.replaceChild(node, patternDeclaration);
+
+      patternify(patternDeclaration);
     }
 
   });
