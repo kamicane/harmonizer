@@ -21,8 +21,6 @@ import computify from './transform/computed-properties';
 export function transform(tree) {
   var program = build(tree);
 
-  modulize(program); // transform modules
-
   deshorthandify(program); // remove shorthand properties
   arrowify(program); // transform arrow functions
 
@@ -31,6 +29,9 @@ export function transform(tree) {
   forofify(program); // transform for of
 
   patternify(program); // transform patterns
+
+  modulize(program); // transform modules
+
   defaultify(program); // transform default parameters
 
   classify(program); // transform classes
